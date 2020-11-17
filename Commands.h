@@ -2,6 +2,9 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <string>
+
+using namespace std;
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -9,6 +12,8 @@
 
 class Command {
 // TODO: Add your data members
+ private:
+  string name;
  public:
   Command(const char* cmd_line);
   virtual ~Command();
@@ -16,6 +21,7 @@ class Command {
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
+  string getCommandName(); // Todo: implement
 };
 
 class BuiltInCommand : public Command {
@@ -100,9 +106,16 @@ class HistoryCommand : public BuiltInCommand {
 };
 
 class JobsList {
+ private:
+    int maxJobID;
  public:
   class JobEntry {
    // TODO: Add your data members
+   int timeStamp;
+   int jobID;
+   int pid;
+   bool isStopped;
+   Command* command;
   };
  // TODO: Add your data members
  public:
@@ -158,6 +171,9 @@ class SmallShell {
  private:
   // TODO: Add your data members
   SmallShell();
+  string currentPrompt = "smash>";
+  JobsList* jobsList;
+  String prevWDir;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor

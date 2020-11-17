@@ -83,6 +83,11 @@ void _removeBackgroundSign(char* cmd_line) {
 }
 
 // TODO: Add your implementation for classes in Commands.h 
+Command::Command(const char *cmd_line) {
+    // TODO: parse line
+    //
+}
+
 
 SmallShell::SmallShell() {
 // TODO: add your implementation

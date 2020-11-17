@@ -13,7 +13,7 @@ using namespace std;
 class Command {
 // TODO: Add your data members
  private:
-  string name;
+  string* args;
  public:
   Command(const char* cmd_line);
   virtual ~Command();
@@ -118,6 +118,9 @@ class JobsList {
    Command* command;
   };
  // TODO: Add your data members
+private:
+    int maxJobID;
+    vector <JobEntry*> jobList;
  public:
   JobsList();
   ~JobsList();

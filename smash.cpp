@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     }
 
     //TODO: setup sig alarm handler
-
+    //test
     SmallShell& smash = SmallShell::getInstance();
     while(true) {
         std::cout << "smash> "; // TODO: change this (why?)

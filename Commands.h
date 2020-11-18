@@ -106,18 +106,16 @@ class HistoryCommand : public BuiltInCommand {
 };
 
 class JobsList {
- private:
-    int maxJobID;
+
  public:
   class JobEntry {
-   // TODO: Add your data members
    int timeStamp;
    int jobID;
    int pid;
    bool isStopped;
    Command* command;
   };
- // TODO: Add your data members
+
 private:
     int maxJobID;
     vector <JobEntry*> jobList;
@@ -132,7 +130,7 @@ private:
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
-  // TODO: Add extra methods or modify exisitng ones as needed
+  void changeJobStatus (int *jobId, bool isStopped);
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -176,7 +174,7 @@ class SmallShell {
   SmallShell();
   string currentPrompt = "smash>";
   JobsList* jobsList;
-  String prevWDir;
+  string prevWDir;
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor

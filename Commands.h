@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <time.h>
 
 using namespace std;
 
@@ -11,17 +12,19 @@ using namespace std;
 #define HISTORY_MAX_RECORDS (50)
 
 class Command {
-// TODO: Add your data members
  private:
   string* args;
+  pid_t pid;
+  bool isFinished; // TODO: should be updated by the dad- the shell after wait() finish. how to update bg process?
  public:
   Command(const char* cmd_line);
   virtual ~Command();
-  virtual void execute() = 0;
+  virtual void execute() = 0; // TODO: should update the pid
+  pid_t getPID();
   //virtual void prepare();
   //virtual void cleanup();
-  // TODO: Add your extra methods if needed
   string getCommandName(); // Todo: implement
+  bool getisFinished(); // Todo: implement
 };
 
 class BuiltInCommand : public Command {
@@ -109,29 +112,31 @@ class JobsList {
 
  public:
   class JobEntry {
-   int timeStamp;
-   int jobID;
-   int pid;
-   bool isStopped;
-   Command* command;
+  public:
+      time_t timeStamp;
+      int jobID;
+      bool isStopped; // TODO: think if we should save it here? or in Command?
+      Command* command;
+      JobEntry(Command* command, int jobID);
+      ~JobEntry(){};
   };
 
 private:
     int maxJobID;
     vector <JobEntry*> jobList;
  public:
-  JobsList();
-  ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false);
-  void printJobsList();
-  void killAllJobs();
-  void removeFinishedJobs();
-  JobEntry * getJobById(int jobId);
-  void removeJobById(int jobId);
-  JobEntry * getLastJob(int* lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
-  void changeJobStatus (int *jobId, bool isStopped);
-};
+    JobsList();
+    ~JobsList();
+    void addJob(Command* cmd, bool isStopped = false);
+    void printJobsList();
+    void killAllJobs(); // why do we need?
+    void removeFinishedJobs();
+    JobEntry * getJobById(int jobId);
+    void removeJobById(int jobId); // why do we need?
+    JobEntry * getLastJob(int* lastJobId); // why do we need?
+    JobEntry *getLastStoppedJob(int *jobId); // why do we need?
+    void changeJobStatus (int jobId, bool isStopped);
+}; // TODO: test the whole class after implementing command class
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members

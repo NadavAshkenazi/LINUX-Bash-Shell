@@ -91,9 +91,8 @@ void _removeBackgroundSign(char* cmd_line) {
 // Command
 //**************************************
 Command::Command(const char *cmd_line): pid(0),isFinished(false) {
-    char** args = (char**)malloc(80*sizeof(char));
+    args = (char**)malloc((20+1)*sizeof(char*));
     args_size = _parseCommandLine(cmd_line, args);
-    args = args;
 }
 Command::~Command() {
 
@@ -102,6 +101,7 @@ Command::~Command() {
     }
     free(args);
 }
+
 pid_t Command::getPID(){return pid;}
 string Command::getCommandName() {return args[0]; }
 bool Command::getisFinished() {return isFinished;}
@@ -110,42 +110,47 @@ bool Command::getisFinished() {return isFinished;}
 //**************************************
 // JobsList
 //**************************************
-JobsList::JobEntry::JobEntry(Command* command, int jobID, JobState state): state(state), jobID(jobID) {
-
-    time_t* temp_time;
-    time(temp_time);
-    timeStamp = *(temp_time);
-    delete temp_time;
-
-    command = command;
+JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID) {
+//    time_t* temp_time;
+//    time(temp_time);
+//    timeStamp = *(temp_time);
+   timeStamp = 0;
+    //delete temp_time;
 }
+
 JobsList::JobsList(): maxJobID(0){
-    vector <JobEntry*> jobList;
+    vector <JobEntry> jobList;
+}
+
+JobsList::~JobsList(){ // TODO: think
+//    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+//        delete (*it);
+//    }
 }
 void JobsList::addJob(Command* cmd, JobState state){
 
-    JobEntry* newJob = new JobEntry(cmd, maxJobID++, state);
+    JobEntry newJob = JobEntry(cmd, ++maxJobID, state);
     jobList.push_back(newJob);
 }
 void JobsList::printJobsList(){
-
+    cout << "print" << endl;
     //removeFinishedJobs();
-    for (vector<JobEntry*>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
 
-        if ((*it)->state == FG)
+        if ((*it).state == FG)
             continue;
 
-        cout << "[" << (*it)->jobID << "]" ;
-        cout << (*it)->command->getCommandName() << ":" ;
-        cout << (*it)->command->getPID();
+        cout << "[" << (*it).jobID << "]" ;
+        cout << (*it).command->getCommandName() << ":" ;
+        cout << (*it).command->getPID();
 
         time_t* current_time;
         time(current_time);
-        double timeElapsed = difftime (*current_time, (*it)->timeStamp);
+        double timeElapsed = difftime (*current_time, (*it).timeStamp);
         cout << timeElapsed;
-        delete current_time;
+        //delete current_time;
 
-        if ((*it)->state == STOPPED){
+        if ((*it).state == STOPPED){
             cout << "(stopped)";
         }
 
@@ -155,18 +160,18 @@ void JobsList::printJobsList(){
 }
 void JobsList::removeFinishedJobs(){ // TODO: how do we know
 
-    for (vector<JobEntry*>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
-        if ((*it)->command->getisFinished()){
+    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+        if ((*it).command->getisFinished()){
             jobList.erase(it);
-            delete (*it)->command;
-            delete (*it);
+            delete (*it).command;
+            //delete (*it);
         }
     }
 }
 JobsList::JobEntry* JobsList::getJobById(int jobId){
-    for (vector<JobEntry*>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
-        if ((*it)->jobID == jobId){
-            return (*it);
+    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+        if ((*it).jobID == jobId){
+            return &(*it);
         }
     }
 }
@@ -180,28 +185,15 @@ void JobsList::changeJobStatus (int jobId, JobState state){
 //**************************************
 // SmallShell
 //**************************************
-SmallShell::SmallShell() {
-
+SmallShell::SmallShell(): currentPrompt("smash>"),prevWDir(NULL) {
+    jobsList = new JobsList();
 }
 SmallShell::~SmallShell() {
-// TODO: add your implementation
+    delete jobsList;
 }
+
 // Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 Command * SmallShell::CreateCommand(const char* cmd_line) {
-<<<<<<< HEAD
-    // For example:
-/*
-  string cmd_s = string(cmd_line);
-  if (cmd_s.find("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
-  }
-  else if ...
-  .....
-  else {
-    return new ExternalCommand(cmd_line);
-  }
-  */
-=======
     string cmd_s = string(cmd_line);
     if (cmd_s.find(">") != std::string::npos || cmd_s.find("<") != std::string::npos){
 //        return new RedirectionCommand(cmd_line);
@@ -245,14 +237,19 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     else {
 //        return new ExternalCommand(cmd_line);
     }
-
->>>>>>> 2fcdb4e... started creat command
     return nullptr;
 }
 void SmallShell::executeCommand(const char *cmd_line) {
-    // TODO: Add your implementation here
-    // for example:
-    // Command* cmd = CreateCommand(cmd_line);
+    //Command* cmd = CreateCommand(cmd_line);
+    Command* cmd= new Command(cmd_line);
+    Command* cmd2= new Command(cmd_line);
+    //cout << cmd->getPID() << cmd->getCommandName() << endl;
+
+    this->jobsList->addJob(cmd, BG);
+    //cout << cmd->getCommandName() << endl;
+    this->jobsList->addJob(cmd2, FG);
+
+    jobsList->printJobsList();
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }

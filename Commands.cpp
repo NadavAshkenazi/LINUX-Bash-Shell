@@ -90,17 +90,21 @@ void _removeBackgroundSign(char* cmd_line) {
 //**************************************
 // Command
 //**************************************
-Command::Command(const char *cmd_line) {
-    // TODO: parse line
-    //
+Command::Command(const char *cmd_line): pid(0),isFinished(false) {
+    char** args = (char**)malloc(80*sizeof(char));
+    args_size = _parseCommandLine(cmd_line, args);
+    args = args;
 }
 Command::~Command() {
-    //
-}
 
-pid_t Command::getPID(){return 0;} // TODO: really implement
-string Command::getCommandName() {return "shahar"; } // TODO: really implement
-bool Command::getisFinished() {return false;} // TODO: really implement
+    for (int i=0; i< args_size ; i++){
+        free(args[i]);
+    }
+    free(args);
+}
+pid_t Command::getPID(){return pid;}
+string Command::getCommandName() {return args[0]; }
+bool Command::getisFinished() {return isFinished;}
 
 
 //**************************************

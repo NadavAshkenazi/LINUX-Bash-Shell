@@ -15,7 +15,8 @@ enum JobState {STOPPED, FG, BG};
 
 class Command {
  private:
-  string* args;
+  char** args;
+  int args_size;
   pid_t pid; // not zero only for built in commands
   bool isFinished; // TODO: should be updated by the dad- the shell after wait() finish. how to update bg process?
  public:

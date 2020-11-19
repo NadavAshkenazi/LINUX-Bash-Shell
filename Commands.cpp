@@ -184,6 +184,7 @@ SmallShell::~SmallShell() {
 }
 // Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 Command * SmallShell::CreateCommand(const char* cmd_line) {
+<<<<<<< HEAD
     // For example:
 /*
   string cmd_s = string(cmd_line);
@@ -196,6 +197,52 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new ExternalCommand(cmd_line);
   }
   */
+=======
+    string cmd_s = string(cmd_line);
+    if (cmd_s.find(">") != std::string::npos || cmd_s.find("<") != std::string::npos){
+//        return new RedirectionCommand(cmd_line);
+    }
+
+    else if (cmd_s.find("|") != std::string::npos){
+//        return new PipeCommand(cmd_line);
+    }
+    else if (cmd_s.find("bg") != std::string::npos){
+//        return new BackgroundCommand(cmd_line); //todo: add jobslist
+    }
+    else if (cmd_s.find("fg") != std::string::npos){
+//        return new ForegroundCommand(cmd_line); //todo: add jobslist
+    }
+    else if (cmd_s.find("cd") != std::string::npos){
+//        return new ChangeDirCommand(cmd_line); //todo: add plastPwd
+    }
+    else if (cmd_s.find("pwd") != std::string::npos){
+//        return new GetCurrDirCommand(cmd_line);
+    }
+    else if (cmd_s.find("showpid") != std::string::npos){
+//        return new ShowPidCommand(cmd_line);
+    }
+    else if (cmd_s.find("jobs") != std::string::npos){
+//        return new JobsCommand(cmd_line); //todo: add jobslist
+    }
+    else if (cmd_s.find("quit") != std::string::npos){
+//        return new QuitCommand(cmd_line); //todo: add jobslist
+    }
+    else if (cmd_s.find("kill") != std::string::npos){
+//        return new KillCommand(cmd_line); //todo: add jobslist
+    }
+//todo: add ls
+
+//    else if (cmd_s.find("pwd") == 0) {
+//    return new GetCurrDirCommand(cmd_line);
+//    }
+//
+//  else if ...
+//  .....
+    else {
+//        return new ExternalCommand(cmd_line);
+    }
+
+>>>>>>> 2fcdb4e... started creat command
     return nullptr;
 }
 void SmallShell::executeCommand(const char *cmd_line) {

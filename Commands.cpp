@@ -22,6 +22,8 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define FUNC_EXIT()
 #endif
 
+#define MAX_ARGS_NUM 20
+#define MAX_SIZE 80
 #define DEBUG_PRINT cerr << "DEBUG: "
 
 #define EXEC(path, arg) \
@@ -91,7 +93,8 @@ void _removeBackgroundSign(char* cmd_line) {
 // Command
 //**************************************
 Command::Command(const char *cmd_line): pid(0),isFinished(false) {
-    args = (char**)malloc((20+1)*sizeof(char*));
+
+    args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
     args_size = _parseCommandLine(cmd_line, args);
 }
 Command::~Command() {
@@ -105,6 +108,35 @@ Command::~Command() {
 pid_t Command::getPID(){return pid;}
 string Command::getCommandName() {return args[0]; }
 bool Command::getisFinished() {return isFinished;}
+
+BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
+    vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"};
+    for (int i =0; i < this->args_size; i++) {
+        string arg_s = string(this->args[i]);
+        for (vector<string>::iterator it = ignoreArgs.begin(); it != ignoreArgs.end(); ++it) {
+            if (arg_s == *it)
+                free(this->args[i]);
+        }
+    }
+    char** clean_args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
+    int j =0;
+    for (int i = 0; i < this->args_size; i++) {
+        if (this->args[i] != NULL)
+            clean_args[j++] = this->args[i];
+    }
+    free(this->args);
+    this->args = clean_args;
+    this->args_size = j;
+}
+
+ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) :BuiltInCommand(cmd_line), plastPwd(*plastPwd){}
+GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {}
+ShowPidCommand::ShowPidCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {}
+QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+KillCommand::KillCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+BackgroundCommand::BackgroundCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
 
 
 //**************************************
@@ -237,19 +269,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     else {
 //        return new ExternalCommand(cmd_line);
     }
+
     return nullptr;
 }
 void SmallShell::executeCommand(const char *cmd_line) {
     //Command* cmd = CreateCommand(cmd_line);
-    Command* cmd= new Command(cmd_line);
-    Command* cmd2= new Command(cmd_line);
-    //cout << cmd->getPID() << cmd->getCommandName() << endl;
-
-    this->jobsList->addJob(cmd, BG);
-    //cout << cmd->getCommandName() << endl;
-    this->jobsList->addJob(cmd2, FG);
-
-    jobsList->printJobsList();
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }

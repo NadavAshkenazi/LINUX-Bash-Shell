@@ -21,10 +21,14 @@ int main(int argc, char* argv[]) {
         std::cout << "smash> "; // TODO: change this (why?)
         std::string cmd_line;
         std::getline(std::cin, cmd_line);
-        smash.executeCommand(cmd_line.c_str());
+        char * plastPwd = NULL;
+        const char *cstr = cmd_line.c_str();
+
+//        Command* cmd = new ChangeDirCommand(cstr, &plastPwd);
+//        Command* cmd2 = new GetCurrDirCommand(cstr);
+//        Command* cmd3 = new ShowPidCommand(cstr);
+
+//        smash.executeCommand(cmd_line.c_str());
     }
-
-
-
     return 0;
 }

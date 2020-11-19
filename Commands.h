@@ -22,94 +22,77 @@ class Command {
  public:
   Command(const char* cmd_line);
   virtual ~Command();
-  //virtual void execute() = 0;
+  virtual void execute() = 0;
   pid_t getPID();
-  //virtual void prepare();
-  //virtual void cleanup();
-  string getCommandName();
-  bool getisFinished();
+  virtual void prepare();
+  virtual void cleanup();
+  string getCommandName(); // Todo: implement
+  bool getisFinished(); // Todo: implement
 };
 
-//class BuiltInCommand : public Command {
-// public:
-//  BuiltInCommand(const char* cmd_line);
-//  virtual ~BuiltInCommand() {}
-//};
-//
-//class ExternalCommand : public Command {
-// public:
-//  ExternalCommand(const char* cmd_line);
-//  virtual ~ExternalCommand() {}
-//  void execute() override;
-//};
-//
-//class PipeCommand : public Command {
-//  // TODO: Add your data members
-// public:
-//  PipeCommand(const char* cmd_line);
-//  virtual ~PipeCommand() {}
-//  void execute() override;
-//};
-//
-//class RedirectionCommand : public Command {
-// // TODO: Add your data members
-// public:
-//  explicit RedirectionCommand(const char* cmd_line);
-//  virtual ~RedirectionCommand() {}
-//  void execute() override;
-//  //void prepare() override;
-//  //void cleanup() override;
-//};
-//
-//class ChangeDirCommand : public BuiltInCommand {
-//// TODO: Add your data members public:
-//  ChangeDirCommand(const char* cmd_line, char** plastPwd);
-//  virtual ~ChangeDirCommand() {}
-//  void execute() override;
-//};
-//
-//class GetCurrDirCommand : public BuiltInCommand {
-// public:
-//  GetCurrDirCommand(const char* cmd_line);
-//  virtual ~GetCurrDirCommand() {}
-//  void execute() override;
-//};
-//
-//class ShowPidCommand : public BuiltInCommand {
-// public:
-//  ShowPidCommand(const char* cmd_line);
-//  virtual ~ShowPidCommand() {}
-//  void execute() override;
-//};
-//
-//class JobsList;
-//class QuitCommand : public BuiltInCommand {
-//// TODO: Add your data members public:
-//  QuitCommand(const char* cmd_line, JobsList* jobs);
-//  virtual ~QuitCommand() {}
-//  void execute() override;
-//};
-//
-//class CommandsHistory {
-// protected:
-//  class CommandHistoryEntry {
-//	  // TODO: Add your data members
-//  };
-// // TODO: Add your data members
-// public:
-//  CommandsHistory();
-//  ~CommandsHistory() {}
-//  void addRecord(const char* cmd_line);
-//  void printHistory();
-//};
-//
-//class HistoryCommand : public BuiltInCommand {
-// // TODO: Add your data members
-// public:
-//  HistoryCommand(const char* cmd_line, CommandsHistory* history);
-//  virtual ~HistoryCommand() {}
-//  void execute() override;
-//};
+class BuiltInCommand : public Command {
+ public:
+  BuiltInCommand(const char* cmd_line);
+  virtual ~BuiltInCommand() {}
+};
+
+class ExternalCommand : public Command {
+ public:
+  ExternalCommand(const char* cmd_line);
+  virtual ~ExternalCommand() {}
+  void execute() override;
+};
+
+class PipeCommand : public Command {
+  // TODO: Add your data members
+ public:
+  PipeCommand(const char* cmd_line);
+  virtual ~PipeCommand() {}
+  void execute() override;
+};
+
+class RedirectionCommand : public Command {
+ // TODO: Add your data members
+ public:
+  explicit RedirectionCommand(const char* cmd_line);
+  virtual ~RedirectionCommand() {}
+  void execute() override;
+  //void prepare() override;
+  //void cleanup() override;
+};
+
+class ChangeDirCommand : public BuiltInCommand {
+// TODO: Add your data members public:
+ private:
+    char* plastPwd;
+ public:
+  ChangeDirCommand(const char* cmd_line, char** plastPwd);
+  virtual ~ChangeDirCommand() {}
+  void execute() override;
+};
+
+class GetCurrDirCommand : public BuiltInCommand {
+ public:
+  GetCurrDirCommand(const char* cmd_line);
+  virtual ~GetCurrDirCommand() {}
+  void execute() override;
+};
+
+class ShowPidCommand : public BuiltInCommand {
+ public:
+  ShowPidCommand(const char* cmd_line);
+  virtual ~ShowPidCommand() {}
+  void execute() override;
+};
+
+class JobsList;
+class QuitCommand : public BuiltInCommand {
+// TODO: Add your data members public
+  JobsList* jobs;
+  QuitCommand(const char* cmd_line, JobsList* jobs);
+  virtual ~QuitCommand() {}
+  void execute() override;
+};
 
 class JobsList {
 
@@ -141,37 +124,41 @@ private:
     void changeJobStatus (int jobId, JobState state);
 }; // TODO: test the whole class after implementing command class
 
-//class JobsCommand : public BuiltInCommand {
-// // TODO: Add your data members
-// public:
-//  JobsCommand(const char* cmd_line, JobsList* jobs);
-//  virtual ~JobsCommand() {}
-//  void execute() override;
-//};
-//
-//class KillCommand : public BuiltInCommand {
-// // TODO: Add your data members
-// public:
-//  KillCommand(const char* cmd_line, JobsList* jobs);
-//  virtual ~KillCommand() {}
-//  void execute() override;
-//};
-//
-//class ForegroundCommand : public BuiltInCommand {
-// // TODO: Add your data members
-// public:
-//  ForegroundCommand(const char* cmd_line, JobsList* jobs);
-//  virtual ~ForegroundCommand() {}
-//  void execute() override;
-//};
-//
-//class BackgroundCommand : public BuiltInCommand {
-// // TODO: Add your data members
-// public:
-//  BackgroundCommand(const char* cmd_line, JobsList* jobs);
-//  virtual ~BackgroundCommand() {}
-//  void execute() override;
-//};
+class JobsCommand : public BuiltInCommand {
+ // TODO: Add your data members
+  JobsList* jobs;
+public:
+  JobsCommand(const char* cmd_line, JobsList* jobs);
+  virtual ~JobsCommand() {}
+  void execute() override;
+};
+
+class KillCommand : public BuiltInCommand {
+ // TODO: Add your data members
+ JobsList* jobs;
+public:
+  KillCommand(const char* cmd_line, JobsList* jobs);
+  virtual ~KillCommand() {}
+  void execute() override;
+};
+
+class ForegroundCommand : public BuiltInCommand {
+ // TODO: Add your data members
+ JobsList* jobs;
+public:
+  ForegroundCommand(const char* cmd_line, JobsList* jobs);
+  virtual ~ForegroundCommand() {}
+  void execute() override;
+};
+
+class BackgroundCommand : public BuiltInCommand {
+ // TODO: Add your data members
+ JobsList* jobs;
+public:
+  BackgroundCommand(const char* cmd_line, JobsList* jobs);
+  virtual ~BackgroundCommand() {}
+  void execute() override;
+};
 
 // TODO: add more classes if needed 
 // maybe ls, timeout ?

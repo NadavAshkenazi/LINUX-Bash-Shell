@@ -182,10 +182,8 @@ BackgroundCommand::BackgroundCommand(const char* cmd_line, JobsList* jobs) :Buil
 // JobsList
 //**************************************
 JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID) {
-//    time_t* temp_time;
-//    time(temp_time);
-//    timeStamp = *(temp_time);
-   timeStamp = 0;
+    time_t* temp_time= NULL;
+    timeStamp = time(temp_time);
     //delete temp_time;
 }
 
@@ -200,11 +198,12 @@ JobsList::~JobsList(){ // TODO: think
 }
 void JobsList::addJob(Command* cmd, JobState state){
 
-    JobEntry newJob = JobEntry(cmd, ++maxJobID, state);
+    JobEntry newJob = JobEntry(cmd, maxJobID+1, state);
+    maxJobID++;
     jobList.push_back(newJob);
 }
 void JobsList::printJobsList(){
-    cout << "print" << endl;
+
     //removeFinishedJobs();
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
 
@@ -215,11 +214,9 @@ void JobsList::printJobsList(){
         cout << (*it).command->getCommandName() << ":" ;
         cout << (*it).command->getPID();
 
-        time_t* current_time;
-        time(current_time);
-        double timeElapsed = difftime (*current_time, (*it).timeStamp);
+        time_t* current_time =  NULL;
+        double timeElapsed = difftime (time(current_time), (*it).timeStamp);
         cout << timeElapsed;
-        //delete current_time;
 
         if ((*it).state == STOPPED){
             cout << "(stopped)";

@@ -106,7 +106,7 @@ bool Command::getisFinished() {return false;} // TODO: really implement
 //**************************************
 // JobsList
 //**************************************
-JobsList::JobEntry::JobEntry(Command* command, int jobID): isStopped(false), jobID(jobID) {
+JobsList::JobEntry::JobEntry(Command* command, int jobID, JobState state): state(state), jobID(jobID) {
 
     time_t* temp_time;
     time(temp_time);
@@ -118,15 +118,18 @@ JobsList::JobEntry::JobEntry(Command* command, int jobID): isStopped(false), job
 JobsList::JobsList(): maxJobID(0){
     vector <JobEntry*> jobList;
 }
-void JobsList::addJob(Command* cmd, bool isStopped){
+void JobsList::addJob(Command* cmd, JobState state){
 
-    JobEntry* newJob = new JobEntry(cmd, maxJobID++);
+    JobEntry* newJob = new JobEntry(cmd, maxJobID++, state);
     jobList.push_back(newJob);
 }
 void JobsList::printJobsList(){
 
     //removeFinishedJobs();
     for (vector<JobEntry*>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+
+        if ((*it)->state == FG)
+            continue;
 
         cout << "[" << (*it)->jobID << "]" ;
         cout << (*it)->command->getCommandName() << ":" ;
@@ -138,7 +141,7 @@ void JobsList::printJobsList(){
         cout << timeElapsed;
         delete current_time;
 
-        if ((*it)->isStopped){
+        if ((*it)->state == STOPPED){
             cout << "(stopped)";
         }
 
@@ -163,16 +166,18 @@ JobsList::JobEntry* JobsList::getJobById(int jobId){
         }
     }
 }
-void JobsList::changeJobStatus (int jobId, bool isStopped){
+
+void JobsList::changeJobStatus (int jobId, JobState state){
     JobEntry* jobToChange = getJobById(jobId);
-    jobToChange->isStopped = isStopped;
+    jobToChange->state = state;
 }
+
 
 //**************************************
 // SmallShell
 //**************************************
 SmallShell::SmallShell() {
-// TODO: add your implementation
+
 }
 SmallShell::~SmallShell() {
 // TODO: add your implementation
@@ -200,3 +205,4 @@ void SmallShell::executeCommand(const char *cmd_line) {
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
+

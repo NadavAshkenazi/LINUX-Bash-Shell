@@ -11,10 +11,12 @@ using namespace std;
 #define COMMAND_MAX_ARGS (20)
 #define HISTORY_MAX_RECORDS (50)
 
+enum JobState {STOPPED, FG, BG};
+
 class Command {
  private:
   string* args;
-  pid_t pid;
+  pid_t pid; // not zero only for built in commands
   bool isFinished; // TODO: should be updated by the dad- the shell after wait() finish. how to update bg process?
  public:
   Command(const char* cmd_line);
@@ -115,9 +117,9 @@ class JobsList {
   public:
       time_t timeStamp;
       int jobID;
-      bool isStopped; // TODO: think if we should save it here? or in Command?
+      JobState state; // TODO: change everthing according to state
       Command* command;
-      JobEntry(Command* command, int jobID);
+      JobEntry(Command* command, int jobID, JobState state);
       ~JobEntry(){};
   };
 
@@ -127,7 +129,7 @@ private:
  public:
     JobsList();
     ~JobsList();
-    void addJob(Command* cmd, bool isStopped = false);
+    void addJob(Command* cmd, JobState state);
     void printJobsList();
     void killAllJobs(); // why do we need?
     void removeFinishedJobs();
@@ -135,7 +137,7 @@ private:
     void removeJobById(int jobId); // why do we need?
     JobEntry * getLastJob(int* lastJobId); // why do we need?
     JobEntry *getLastStoppedJob(int *jobId); // why do we need?
-    void changeJobStatus (int jobId, bool isStopped);
+    void changeJobStatus (int jobId, JobState state);
 }; // TODO: test the whole class after implementing command class
 
 class JobsCommand : public BuiltInCommand {

@@ -129,13 +129,52 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
     this->args_size = j;
 }
 
+//**************************************
+// ChangeDirCommand
+//**************************************
+
 ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) :BuiltInCommand(cmd_line), plastPwd(*plastPwd){}
+
+//**************************************
+// GetCurrDirCommand
+//**************************************
+
 GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {}
+
+//**************************************
+// ShowPidCommand
+//**************************************
+
 ShowPidCommand::ShowPidCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {}
+
+//**************************************
+// QuitCommand
+//**************************************
+
 QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+
+//**************************************
+// JobsCommand
+//**************************************
+
 JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+
+//**************************************
+// KillCommand
+//**************************************
+
 KillCommand::KillCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+
+//**************************************
+// ForegroundCommand
+//**************************************
+
 ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+
+//**************************************
+// BackgroundCommand
+//**************************************
+
 BackgroundCommand::BackgroundCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
 
 

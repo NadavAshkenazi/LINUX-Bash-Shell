@@ -24,9 +24,6 @@ int main(int argc, char* argv[]) {
         char * plastPwd = NULL;
         const char *cstr = cmd_line.c_str();
 
-//        Command* cmd = new ChangeDirCommand(cstr, &plastPwd);
-//        Command* cmd2 = new GetCurrDirCommand(cstr);
-//        Command* cmd3 = new ShowPidCommand(cstr);
 
 //        smash.executeCommand(cmd_line.c_str());
     }

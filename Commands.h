@@ -132,6 +132,7 @@ private:
     JobEntry * getLastJob(int* lastJobId); // why do we need?
     JobEntry *getLastStoppedJob(int *jobId); // why do we need?
     void changeJobStatus (int jobId, JobState state);
+    JobEntry* getFgJob();
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -176,9 +177,9 @@ public:
 class SmallShell {
  private:
   SmallShell();
-  JobsList* jobsList;
   char* plastPwd;
 public:
+    JobsList* jobsList;
     string currentPrompt;
     Command *CreateCommand(const char* cmd_line);
     SmallShell(SmallShell const&)      = delete; // disable copy ctor

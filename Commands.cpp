@@ -314,6 +314,15 @@ void JobsList::changeJobStatus (int jobId, JobState state){
     jobToChange->state = state;
 }
 
+JobsList::JobEntry* JobsList::getFgJob() {
+    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+        if ((*it).state == FG){
+            return &(*it);
+        }
+    }
+    return NULL;
+}
+
 
 //**************************************
 // SmallShell

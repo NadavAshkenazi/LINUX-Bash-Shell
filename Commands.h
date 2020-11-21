@@ -66,18 +66,18 @@ class RedirectionCommand : public Command {
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
  private:
-    char* plastPwd;
+    char** plastPwd;
  public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
+   ChangeDirCommand(const char* cmd_line, char** plastPwd);
   virtual ~ChangeDirCommand() {}
-  void execute() override{}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
  public:
   GetCurrDirCommand(const char* cmd_line);
   virtual ~GetCurrDirCommand() {}
-  void execute() override{}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand {
@@ -132,7 +132,7 @@ private:
     JobEntry * getLastJob(int* lastJobId); // why do we need?
     JobEntry *getLastStoppedJob(int *jobId); // why do we need?
     void changeJobStatus (int jobId, JobState state);
-}; // TODO: test the whole class after implementing command class
+};
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members
@@ -177,7 +177,7 @@ class SmallShell {
  private:
   SmallShell();
   JobsList* jobsList;
-  char* prevWDir;
+  char* plastPwd;
 public:
     string currentPrompt;
     Command *CreateCommand(const char* cmd_line);
@@ -190,7 +190,6 @@ public:
       }
     ~SmallShell();
     void executeCommand(const char* cmd_line);
-  // TODO: add extra methods as needed
 };
 
 #endif //SMASH_COMMAND_H_

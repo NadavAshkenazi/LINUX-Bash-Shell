@@ -23,6 +23,8 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #endif
 
 #define MAX_ARGS_NUM 20
+#define MAX_PWD_SIZE 1000000
+#define ARGS_NUM_CD 1
 #define MAX_SIZE 80
 #define DEBUG_PRINT cerr << "DEBUG: "
 
@@ -104,13 +106,16 @@ Command::~Command() {
     }
     free(args);
 }
-
 pid_t Command::getPID(){return pid;}
 string Command::getCommandName() {return args[0]; }
 bool Command::getisFinished() {return isFinished;}
 
+
+//**************************************
+// BuiltInCommand
+//**************************************
 BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
-    vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"};
+    vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"}; // TODO: check if need to do redirection
     for (int i =0; i < this->args_size; i++) {
         string arg_s = string(this->args[i]);
         for (vector<string>::iterator it = ignoreArgs.begin(); it != ignoreArgs.end(); ++it) {
@@ -133,20 +138,58 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
 // ChangeDirCommand
 //**************************************
 
-ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) :BuiltInCommand(cmd_line), plastPwd(*plastPwd){}
+ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) :BuiltInCommand(cmd_line), plastPwd(plastPwd){}
+void ChangeDirCommand::execute(){
+    if (args_size-1 > ARGS_NUM_CD){
+        perror("smash error: cd: too many arguments");
+        return;
+    }
+    if (args_size-1 < ARGS_NUM_CD){
+        perror("smash error: cd: too few arguments");
+        return;
+    }
+
+    if (string(args[ARGS_NUM_CD]) != "-"){
+        char* temp = *plastPwd; // just in case cd failed
+        char* pwd = (char*)malloc(MAX_PWD_SIZE);
+        getcwd(pwd, MAX_PWD_SIZE);
+        *plastPwd = pwd;
+
+        if (chdir(args[ARGS_NUM_CD]) != 0){ // cd failed
+            perror("smash error: chdir failed");
+            *plastPwd = temp;
+            return;
+        }
+    }
+    else{
+        if (plastPwd == NULL){
+            perror("smash error: cd: OLDPWD not set");
+            return;
+        }
+        else{
+            args[ARGS_NUM_CD] = *plastPwd;
+            ChangeDirCommand::execute();
+        }
+    }
+}
 
 //**************************************
 // GetCurrDirCommand
 //**************************************
 
 GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {}
+void GetCurrDirCommand::execute() {
+    char pwd[MAX_PWD_SIZE];
+    getcwd(pwd, MAX_PWD_SIZE);
+    string s_pwd= string(pwd);
+    cout << s_pwd << endl;
+}
 
 //**************************************
 // ShowPidCommand
 //**************************************
 
 ShowPidCommand::ShowPidCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {}
-
 void ShowPidCommand::execute() {
     pid_t currPid = getpid();
     cout << "smash pid is " << currPid << endl;
@@ -163,7 +206,6 @@ QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(c
 //**************************************
 
 JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
-
 void JobsCommand::execute() {
     this->jobs->printJobsList();
 }
@@ -211,11 +253,9 @@ JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(c
     time_t* temp_time= NULL;
     timeStamp = time(temp_time); //todo: check time format
 }
-
 JobsList::JobsList(): maxJobID(0){
     vector <JobEntry> jobList;
 }
-
 JobsList::~JobsList(){ // TODO: think
 //    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
 //        delete (*it);
@@ -267,8 +307,8 @@ JobsList::JobEntry* JobsList::getJobById(int jobId){
             return &(*it);
         }
     }
+    return NULL;
 }
-
 void JobsList::changeJobStatus (int jobId, JobState state){
     JobEntry* jobToChange = getJobById(jobId);
     jobToChange->state = state;
@@ -278,13 +318,13 @@ void JobsList::changeJobStatus (int jobId, JobState state){
 //**************************************
 // SmallShell
 //**************************************
-SmallShell::SmallShell(): currentPrompt("smash>"),prevWDir(NULL) {
+SmallShell::SmallShell(): currentPrompt("smash>"),plastPwd(NULL) {
     jobsList = new JobsList();
 }
 SmallShell::~SmallShell() {
     delete jobsList;
+    free(plastPwd);
 }
-
 // Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 Command * SmallShell::CreateCommand(const char* cmd_line) {
     string cmd_s = string(cmd_line);
@@ -302,10 +342,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 //        return new ForegroundCommand(cmd_line); //todo: add jobslist
     }
     else if (cmd_s.find("cd") != std::string::npos){
-//        return new ChangeDirCommand(cmd_line); //todo: add plastPwd
+        return new ChangeDirCommand(cmd_line, &plastPwd); //todo: add plastPwd
     }
     else if (cmd_s.find("pwd") != std::string::npos){
-//        return new GetCurrDirCommand(cmd_line);
+        return new GetCurrDirCommand(cmd_line);
     }
     else if (cmd_s.find("showpid") != std::string::npos){
         return new ShowPidCommand(cmd_line);
@@ -340,5 +380,9 @@ void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
     cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
+
+    //char** args;
+    //Command* cmd = _parseCommandLine(cmd_line, args);
+
 }
 

@@ -84,7 +84,15 @@ class ShowPidCommand : public BuiltInCommand {
  public:
   ShowPidCommand(const char* cmd_line);
   virtual ~ShowPidCommand() {}
-  void execute() override; //Todo: remove {} when implementing
+  void execute() override;
+};
+
+class ChangePromptCommand : public BuiltInCommand {
+public:
+    string* currentPromp;
+    ChangePromptCommand(const char* cmd_line, string* currentPrompt);
+    virtual ~ChangePromptCommand() {} //todo: =default?
+    void execute() override;
 };
 
 class JobsList;
@@ -168,21 +176,20 @@ public:
 class SmallShell {
  private:
   SmallShell();
-  string currentPrompt;
   JobsList* jobsList;
   char* prevWDir;
- public:
-  Command *CreateCommand(const char* cmd_line);
-  SmallShell(SmallShell const&)      = delete; // disable copy ctor
-  void operator=(SmallShell const&)  = delete; // disable = operator
-  static SmallShell& getInstance() // make SmallShell singleton
-  {
-    static SmallShell instance; // Guaranteed to be destroyed.
-    // Instantiated on first use.
-    return instance;
-  }
-  ~SmallShell();
-  void executeCommand(const char* cmd_line);
+public:
+    string currentPrompt;
+    Command *CreateCommand(const char* cmd_line);
+    SmallShell(SmallShell const&)      = delete; // disable copy ctor
+    void operator=(SmallShell const&)  = delete; // disable = operator
+    static SmallShell& getInstance(){// make SmallShell singleton
+        static SmallShell instance; // Guaranteed to be destroyed.
+        // Instantiated on first use.
+        return instance;
+      }
+    ~SmallShell();
+    void executeCommand(const char* cmd_line);
   // TODO: add extra methods as needed
 };
 

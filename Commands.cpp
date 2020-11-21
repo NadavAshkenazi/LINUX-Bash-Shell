@@ -186,14 +186,30 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs) :Buil
 
 BackgroundCommand::BackgroundCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
 
+//**************************************
+// ChangePromptCommand
+//**************************************
+
+ChangePromptCommand::ChangePromptCommand(const char *cmd_line, string* currentPrompt) :BuiltInCommand(cmd_line),
+                                                                                        currentPromp(currentPrompt) {}
+
+void ChangePromptCommand::execute() {
+    if (this->args_size == 1){
+        *currentPromp = "smash>";
+    }
+    else{
+        string test = string(this->args[1]) + ">";
+        *currentPromp = string(this->args[1]) + ">";
+    }
+}
 
 //**************************************
 // JobsList
 //**************************************
+
 JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID) {
     time_t* temp_time= NULL;
-    timeStamp = time(temp_time);
-    //delete temp_time;
+    timeStamp = time(temp_time); //todo: check time format
 }
 
 JobsList::JobsList(): maxJobID(0){
@@ -302,6 +318,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     }
     else if (cmd_s.find("kill") != std::string::npos){
 //        return new KillCommand(cmd_line); //todo: add jobslist
+    }
+    else if (cmd_s.find("chprompt") != std::string::npos){
+        return new ChangePromptCommand(cmd_line, &this->currentPrompt);
     }
 //todo: add ls
 

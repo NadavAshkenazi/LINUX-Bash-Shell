@@ -14,13 +14,15 @@ using namespace std;
 
 enum JobState {STOPPED, FG, BG};
 
+class JobsList;
+
 class Command {
  protected:
-  char** args;
-  int args_size;
-  pid_t pid; // not zero only for built in commands
+  vector<string> args;
+  pid_t _pid; // not zero only for built in commands
   bool isFinished; // TODO: should be updated by the dad- the shell after wait() finish. how to update bg process?
- public:
+  const char* cmd_line;
+public:
   Command(const char* cmd_line);
   virtual ~Command();
 //  virtual void execute() = 0;
@@ -40,10 +42,13 @@ class BuiltInCommand : public Command {
 };
 
 class ExternalCommand : public Command {
- public:
-  ExternalCommand(const char* cmd_line);
+private:
+    bool _wait;
+    JobsList* jobs;
+public:
+  ExternalCommand(const char* cmd_line, JobsList* jobs);
   virtual ~ExternalCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class PipeCommand : public Command {
@@ -96,7 +101,6 @@ public:
     void execute() override;
 };
 
-class JobsList;
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members public
   JobsList* jobs;

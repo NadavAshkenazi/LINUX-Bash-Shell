@@ -94,47 +94,43 @@ void _removeBackgroundSign(char* cmd_line) {
 //**************************************
 // Command
 //**************************************
-Command::Command(const char *cmd_line): pid(0),isFinished(false) {
+Command::Command(const char *cmd_line): _pid(0),isFinished(false), cmd_line(cmd_line) {
 
-    args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
-    args_size = _parseCommandLine(cmd_line, args);
-}
-Command::~Command() {
-
+    char** args_temp = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
+    int args_size = _parseCommandLine(cmd_line, args_temp);
     for (int i=0; i< args_size ; i++){
-        free(args[i]);
+        args.push_back(args_temp[i]);
     }
-    free(args);
+
 }
-pid_t Command::getPID(){return pid;}
+Command::~Command() {}
+pid_t Command::getPID(){return _pid;}
 string Command::getCommandName() {return args[0]; }
 bool Command::getisFinished() {return isFinished;}
-void Command::cleanArgs(){
-    char** clean_args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
-    int j =0;
-    for (int i = 0; i < this->args_size; i++) {
-        if (this->args[i] != NULL)
-            clean_args[j++] = this->args[i];
-    }
-    free(this->args);
-    this->args = clean_args;
-    this->args_size = j;
-}
+//void Command::cleanArgs(){
+//    char** clean_args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
+//    int j =0;
+//    for (int i = 0; i < this->args_size; i++) {
+//        if (this->args[i] != NULL)
+//            clean_args[j++] = this->args[i];
+//    }
+//    free(this->args);
+//    this->args = clean_args;
+//    this->args_size = j;
+//}
 
 //**************************************
 // BuiltInCommand
 //**************************************
 BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
     vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"}; // TODO: check if need to do redirection
-    for (int i =0; i < this->args_size; i++) {
-        string arg_s = string(this->args[i]);
-        for (vector<string>::iterator it = ignoreArgs.begin(); it != ignoreArgs.end(); ++it) {
-            if (arg_s == *it)
-                free(this->args[i]);
+
+    for (vector<string>::iterator it_args = args.begin(); it_args != args.end(); it_args++) {
+        for (vector<string>::iterator it_ignore = ignoreArgs.begin(); it_ignore != ignoreArgs.end(); ++it_ignore) {
+            if (*it_args == *it_ignore)
+                it_args= args.erase(it_args); // TODO: check
         }
     }
-
-    this->cleanArgs();
 }
 
 //**************************************
@@ -143,11 +139,11 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
 
 ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) :BuiltInCommand(cmd_line), plastPwd(plastPwd){}
 void ChangeDirCommand::execute(){
-    if (args_size-1 > ARGS_NUM_CD){
+    if (args.size()-1 > ARGS_NUM_CD){
         perror("smash error: cd: too many arguments");
         return;
     }
-    if (args_size-1 < ARGS_NUM_CD){
+    if (args.size()-1 < ARGS_NUM_CD){
         perror("smash error: cd: too few arguments");
         return;
     }
@@ -158,7 +154,7 @@ void ChangeDirCommand::execute(){
         getcwd(pwd, MAX_PWD_SIZE);
         *plastPwd = pwd;
 
-        if (chdir(args[ARGS_NUM_CD]) != 0){ // cd failed
+        if (chdir((const char *) (args[ARGS_NUM_CD]).c_str()) != 0){ // cd failed
             perror("smash error: chdir failed");
             *plastPwd = temp;
             return;
@@ -245,12 +241,12 @@ ChangePromptCommand::ChangePromptCommand(const char *cmd_line, string* currentPr
                                                                                         currentPromp(currentPrompt) {}
 
 void ChangePromptCommand::execute() {
-    if (this->args_size == 1){
+    if (this->args.size() == 1){
         *currentPromp = "smash>";
     }
     else{
-        string test = string(this->args[1]) + ">";
-        *currentPromp = string(this->args[1]) + ">";
+        string test = this->args[1] + ">";
+        *currentPromp = this->args[1] + ">";
     }
 }
 
@@ -258,23 +254,50 @@ void ChangePromptCommand::execute() {
 // External Command
 //**************************************
 
-ExternalCommand::ExternalCommand(const char* cmd_line): Command(cmd_line){
-
-    bool wait = false;
-    for (int i =0; i < this->args_size; i++) {
-        string arg_s = string(this->args[i]);
-        if (arg_s == "&") {
-            wait = true;
-            free(this->args[i]);
+ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), jobs(jobs) {
+    _wait = true;
+    for (vector<string>::iterator it = args.begin(); it != args.end(); it++) {
+        if (*it == "&"){
+            _wait = false;
         }
     }
-    this->cleanArgs();
-
-    char* new_args[] = (char*)malloc((args_size)*sizeof(char*));
-            //setpgrp()
 
 }
-//void ExternalCommand::execute(){}
+void ExternalCommand::execute(){
+    char clean_cmd_line[strlen(cmd_line) + 1];
+    strcpy(clean_cmd_line,cmd_line);
+    _removeBackgroundSign(clean_cmd_line);
+
+    JobState state = FG;
+    if (wait)
+        state = BG;
+    jobs->addJob(this, state);
+
+    pid_t pid = fork();
+
+    if (pid < 0){
+        perror("smash error: fork failed");
+        return;
+    }
+    if (pid == 0){ // child process
+        setpgrp();
+
+        char* args_to_bash[] = {"/bin/bash",
+                                "-c",
+                                clean_cmd_line,
+                                NULL};
+        execv(args_to_bash[0], args_to_bash);
+        perror("smash error: execv failed");
+        return;
+    }
+    else{ // shell
+        kill (pid, SIGTSTP); // debug
+        if (_wait){
+            waitpid(pid,NULL,0);
+        }
+        _pid = pid;
+    }
+}
 
 
 
@@ -413,7 +436,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 //  else if ...
 //  .....
     else {
-//        return new ExternalCommand(cmd_line);
+        return new ExternalCommand(cmd_line, jobsList);
     }
 
     return nullptr;

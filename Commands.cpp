@@ -147,6 +147,11 @@ GetCurrDirCommand::GetCurrDirCommand(const char* cmd_line) :BuiltInCommand(cmd_l
 
 ShowPidCommand::ShowPidCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {}
 
+void ShowPidCommand::execute() {
+    pid_t currPid = getpid();
+    cout << "smash pid is " << currPid << endl;
+}
+
 //**************************************
 // QuitCommand
 //**************************************
@@ -158,6 +163,10 @@ QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(c
 //**************************************
 
 JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
+
+void JobsCommand::execute() {
+    this->jobs->printJobsList();
+}
 
 //**************************************
 // KillCommand
@@ -283,10 +292,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 //        return new GetCurrDirCommand(cmd_line);
     }
     else if (cmd_s.find("showpid") != std::string::npos){
-//        return new ShowPidCommand(cmd_line);
+        return new ShowPidCommand(cmd_line);
     }
     else if (cmd_s.find("jobs") != std::string::npos){
-//        return new JobsCommand(cmd_line); //todo: add jobslist
+        return new JobsCommand(cmd_line, this->jobsList); //todo: add jobslist
     }
     else if (cmd_s.find("quit") != std::string::npos){
 //        return new QuitCommand(cmd_line); //todo: add jobslist
@@ -309,8 +318,8 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return nullptr;
 }
 void SmallShell::executeCommand(const char *cmd_line) {
-    //Command* cmd = CreateCommand(cmd_line);
-    // cmd->execute();
+    Command* cmd = CreateCommand(cmd_line);
+    cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 

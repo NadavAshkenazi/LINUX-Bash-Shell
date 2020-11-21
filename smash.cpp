@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
         const char *cstr = cmd_line.c_str();
 
 
-//        smash.executeCommand(cmd_line.c_str());
+        smash.executeCommand(cmd_line.c_str());
     }
     return 0;
 }

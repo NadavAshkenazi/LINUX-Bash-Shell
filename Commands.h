@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <time.h>
+#include <stdio.h>
 
 using namespace std;
 
@@ -83,7 +84,7 @@ class ShowPidCommand : public BuiltInCommand {
  public:
   ShowPidCommand(const char* cmd_line);
   virtual ~ShowPidCommand() {}
-  void execute() override{}; //Todo: remove {} when implementing
+  void execute() override; //Todo: remove {} when implementing
 };
 
 class JobsList;
@@ -131,7 +132,7 @@ class JobsCommand : public BuiltInCommand {
 public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
   virtual ~JobsCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override; //Todo: remove {} when implementing
 };
 
 class KillCommand : public BuiltInCommand {

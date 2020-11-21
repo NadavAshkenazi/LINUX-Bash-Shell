@@ -109,7 +109,17 @@ Command::~Command() {
 pid_t Command::getPID(){return pid;}
 string Command::getCommandName() {return args[0]; }
 bool Command::getisFinished() {return isFinished;}
-
+void Command::cleanArgs(){
+    char** clean_args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
+    int j =0;
+    for (int i = 0; i < this->args_size; i++) {
+        if (this->args[i] != NULL)
+            clean_args[j++] = this->args[i];
+    }
+    free(this->args);
+    this->args = clean_args;
+    this->args_size = j;
+}
 
 //**************************************
 // BuiltInCommand
@@ -123,15 +133,8 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
                 free(this->args[i]);
         }
     }
-    char** clean_args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
-    int j =0;
-    for (int i = 0; i < this->args_size; i++) {
-        if (this->args[i] != NULL)
-            clean_args[j++] = this->args[i];
-    }
-    free(this->args);
-    this->args = clean_args;
-    this->args_size = j;
+
+    this->cleanArgs();
 }
 
 //**************************************
@@ -229,6 +232,12 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs) :Buil
 BackgroundCommand::BackgroundCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
 
 //**************************************
+// lsCommand
+//**************************************
+lsCommand::lsCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+//void lsCommand::execute{}
+
+//**************************************
 // ChangePromptCommand
 //**************************************
 
@@ -244,6 +253,30 @@ void ChangePromptCommand::execute() {
         *currentPromp = string(this->args[1]) + ">";
     }
 }
+
+//**************************************
+// External Command
+//**************************************
+
+ExternalCommand::ExternalCommand(const char* cmd_line): Command(cmd_line){
+
+    bool wait = false;
+    for (int i =0; i < this->args_size; i++) {
+        string arg_s = string(this->args[i]);
+        if (arg_s == "&") {
+            wait = true;
+            free(this->args[i]);
+        }
+    }
+    this->cleanArgs();
+
+    char* new_args[] = (char*)malloc((args_size)*sizeof(char*));
+            //setpgrp()
+
+}
+//void ExternalCommand::execute(){}
+
+
 
 //**************************************
 // JobsList

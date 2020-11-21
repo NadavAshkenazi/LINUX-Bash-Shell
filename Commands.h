@@ -30,6 +30,7 @@ class Command {
 //  virtual void cleanup();
   string getCommandName(); // Todo: implement
   bool getisFinished(); // Todo: implement
+  void cleanArgs();
 };
 
 class BuiltInCommand : public Command {
@@ -169,6 +170,13 @@ public:
   BackgroundCommand(const char* cmd_line, JobsList* jobs);
   virtual ~BackgroundCommand() {}
   void execute() override {}; //Todo: remove {} when implementing
+};
+
+class lsCommand : public BuiltInCommand{
+public:
+    lsCommand(const char* cmd_line);
+    virtual ~lsCommand() {};
+    void execute() override{};
 };
 
 // TODO: add more classes if needed 

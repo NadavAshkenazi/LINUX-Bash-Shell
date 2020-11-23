@@ -312,7 +312,7 @@ void ChangeDirCommand::execute(){
         }
     }
     else{
-        if (plastPwd == NULL){
+        if (*plastPwd == NULL){
             perror("smash error: cd: OLDPWD not set");
             return;
         }

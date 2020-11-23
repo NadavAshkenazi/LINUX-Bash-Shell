@@ -52,11 +52,14 @@ public:
 };
 
 class PipeCommand : public Command {
-  // TODO: Add your data members
- public:
+private:
+    pid_t _pid1;
+    pid_t _pid2;
+
+public:
   PipeCommand(const char* cmd_line);
   virtual ~PipeCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class RedirectionCommand : public Command {
@@ -159,7 +162,7 @@ public:
   void execute() override {}; //Todo: remove {} when implementing
 };
 
-class ForegroundCommand : public BuiltInCommand {
+class ForegroundCommand : public BuiltInCommand { // TODO: reset timer in jobs list when
  // TODO: Add your data members
  JobsList* jobs;
 public:

@@ -138,7 +138,8 @@ private:
     JobEntry *getLastStoppedJob(int *jobId); // why do we need?
     void changeJobStatus (int jobId, JobState state);
     JobEntry* getFgJob();
-};
+    void printFirstJobs();
+    };
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members

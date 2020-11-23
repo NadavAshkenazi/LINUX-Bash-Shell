@@ -107,17 +107,6 @@ Command::~Command() {}
 pid_t Command::getPID(){return _pid;}
 string Command::getCommandName() {return args[0]; }
 bool Command::getisFinished() {return isFinished;}
-//void Command::cleanArgs(){
-//    char** clean_args = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
-//    int j =0;
-//    for (int i = 0; i < this->args_size; i++) {
-//        if (this->args[i] != NULL)
-//            clean_args[j++] = this->args[i];
-//    }
-//    free(this->args);
-//    this->args = clean_args;
-//    this->args_size = j;
-//}
 
 //**************************************
 // BuiltInCommand
@@ -268,10 +257,11 @@ void ExternalCommand::execute(){
     strcpy(clean_cmd_line,cmd_line);
     _removeBackgroundSign(clean_cmd_line);
 
-    JobState state = FG;
+    JobState state = BG;
     if (wait)
-        state = BG;
+        state = FG;
     jobs->addJob(this, state);
+    //jobs->printFirstJobs();  // TODO: debug
 
     pid_t pid = fork();
 
@@ -282,20 +272,26 @@ void ExternalCommand::execute(){
     if (pid == 0){ // child process
         setpgrp();
 
+        //kill (getpid(), SIGTSTP); // debug
+
         char* args_to_bash[] = {"/bin/bash",
                                 "-c",
                                 clean_cmd_line,
                                 NULL};
+        //kill (getpid(), SIGTSTP); // debug
         execv(args_to_bash[0], args_to_bash);
         perror("smash error: execv failed");
         return;
     }
     else{ // shell
-        kill (pid, SIGTSTP); // debug
+        _pid = pid;
+        //kill (getpid(), SIGTSTP); // TODO: debug
         if (_wait){
             waitpid(pid,NULL,0);
         }
-        _pid = pid;
+
+
+
     }
 }
 
@@ -380,6 +376,10 @@ JobsList::JobEntry* JobsList::getFgJob() {
 }
 
 
+void JobsList::printFirstJobs(){
+   cout << jobList.begin()->command->getCommandName() <<  jobList.begin()->state << endl;
+}
+
 //**************************************
 // SmallShell
 //**************************************
@@ -444,6 +444,12 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
     cmd->execute();
+//    Command* cmd = new Command(cmd_line);
+//    jobsList->addJob(cmd, FG);
+//    JobsList::JobEntry* FG_job =  jobsList->getFgJob();
+//    cout << FG_job->state << endl;
+
+
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 
     //char** args;

@@ -6,13 +6,13 @@
 using namespace std;
 
 void ctrlZHandler(int sig_num) { //todo check with pipe and redirections
-    // TODO: check why not work
     cout << "smash got ctrl-Z" << endl;
     SmallShell& smash = SmallShell::getInstance();
+    smash.jobsList->printFirstJobs();
     JobsList::JobEntry* fgJob = smash.jobsList->getFgJob();
-    int error = kill(fgJob->command->getPID(), SIGSTOP);
-    if (error != 0){
+    if (kill(fgJob->command->getPID(), SIGSTOP) != 0){
         perror("smash error: kill failed"); // kill is the syscall that failed
+        return;
     }
     cout << "smash: process" << fgJob->command->getPID() << "was stopped" << endl;
 }

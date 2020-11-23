@@ -402,7 +402,22 @@ void ChangePromptCommand::execute() {
 }
 
 
+//**************************************
+// Timeout Command
+//**************************************
 
+TimeoutCommand::TimeoutCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line), jobs(jobs){}
+
+void TimeoutCommand::execute() {
+    string command = "";
+    for (int i = 2; i < args.size(); i++){
+        command += args[i];
+        command += " ";
+    }
+    SmallShell& smash = SmallShell::getInstance();
+    smash.executeCommand(command.c_str());
+    //todo: fork - parent - execute, child - send signal
+}
 
 //**************************************
 // JobsList
@@ -414,6 +429,7 @@ JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(c
 }
 JobsList::JobsList(): maxJobID(0){
     vector <JobEntry> jobList;
+    queue<int> timeoutJobs;
 }
 JobsList::~JobsList(){ // TODO: think
 //    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
@@ -487,11 +503,31 @@ void JobsList::printFirstJobs(){
    cout << jobList.begin()->command->getCommandName() <<  jobList.begin()->state << endl;
 }
 
+void JobsList::removeJobById(int jobId){
+    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+        if ((*it).jobID == jobId){
+            jobList.erase(it);
+            delete (*it).command;
+        }
+    }
+    return;
+}
+
+
+JobsList::JobEntry* JobsList::getTimeoutJob(){
+    int jobID = this->timeoutJobs.front();
+    return this->getJobById(jobID);
+}
+
 //**************************************
 // SmallShell
 //**************************************
 SmallShell::SmallShell(): currentPrompt("smash>"),plastPwd(NULL) {
     jobsList = new JobsList();
+    smashPid = getpid();
+    if (smashPid <0){
+        perror("smash error: getpid failed");
+    }
 }
 SmallShell::~SmallShell() {
     delete jobsList;
@@ -500,10 +536,12 @@ SmallShell::~SmallShell() {
 // Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 Command * SmallShell::CreateCommand(const char* cmd_line) {
     string cmd_s = string(cmd_line);
-    if (cmd_s.find(">") != std::string::npos || cmd_s.find("<") != std::string::npos){
+    if (cmd_s.find("timeout") != std::string::npos) {
+        return new TimeoutCommand(cmd_line, this->jobsList);
+    }
+    else if (cmd_s.find(">") != std::string::npos || cmd_s.find("<") != std::string::npos){
 //        return new RedirectionCommand(cmd_line);
     }
-
     else if (cmd_s.find("|") != std::string::npos){
         return new PipeCommand(cmd_line);
     }

@@ -185,7 +185,8 @@ void PipeCommand::execute() {
     }
 
     string cmd_1 = s_cmd.substr(0, pipeLocation);
-    string cmd_2 = s_cmd.substr(pipeLocation + 1);
+    int sizeOfPipe = regularPipe ? 1 : 2;
+    string cmd_2 = s_cmd.substr(pipeLocation + sizeOfPipe);
 
     int fd[2];
     if (pipe(fd) == -1) {

@@ -43,7 +43,6 @@ void alarmHandler(int sig_num) {
         }
     }
     string cmd_line = timeoutJob->command->cmd_line;
-    cout << cmd_line << endl;
     smash.jobsList->removeJobById(timeoutJob->jobID);
     cout << "smash: process " << cmd_line << " timed out!" << endl;
 }

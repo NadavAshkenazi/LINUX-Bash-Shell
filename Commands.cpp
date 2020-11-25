@@ -489,7 +489,8 @@ void TimeoutCommand::execute() {
     string command = "";
     for (int i = 2; i < args.size(); i++){
         command += args[i];
-        command += " ";
+        if (i + 1 < args.size())
+            command += " ";
     }
     SmallShell& smash = SmallShell::getInstance();
     pid_t pid = fork();
@@ -542,7 +543,6 @@ int JobsList::addJob(Command* cmd, JobState state){
     JobEntry newJob = JobEntry(cmd, maxJobID+1, state);
     maxJobID++;
     jobList.push_back(newJob);
-    cout << "added job: " << maxJobID << endl;
     return maxJobID;
 
 }
@@ -610,7 +610,6 @@ void JobsList::removeJobById(int jobId){ // todo remove also from timeout vector
         if (jobList[i].jobID == jobId){
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
-            cout << "before removing timeout" << endl;
             removeTimeoutJob(jobId);
             return;
         }
@@ -628,8 +627,6 @@ JobsList::JobEntry* JobsList::getTimeoutJob(){
         JobEntry* job = getJobById((it->id));
         time_t* tempTime= NULL;
         time_t now = time(tempTime);
-        cout << "job " << it->id << " timeStamp: " << job->timeStamp << " now: " << now << " sleepTime " << it->sleepTime << " diff " << now - job->timeStamp << endl;
-        cout << "finished: " << (now - job->timeStamp >= it->sleepTime) << endl;
         if (now - job->timeStamp >= it->sleepTime){
             return job;
         }
@@ -640,9 +637,7 @@ JobsList::JobEntry* JobsList::getTimeoutJob(){
 void JobsList::removeTimeoutJob(int jobId){
     for (int i = 0; i< timeoutJobs.size(); i++){
         if (timeoutJobs[i].id = jobId){
-            cout << "found" << endl;
             timeoutJobs.erase(timeoutJobs.begin() + i);
-            cout << "erase" << endl;
             return;
         }
     }

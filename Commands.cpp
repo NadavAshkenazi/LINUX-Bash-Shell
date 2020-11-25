@@ -636,9 +636,7 @@ JobsList::JobEntry* JobsList::getTimeoutJob(){
 
 void JobsList::removeTimeoutJob(int jobId){
     for (int i = 0; i< timeoutJobs.size(); i++){
-        cout << "timeoutJobs[i].id is: " << timeoutJobs[i].id << " jobId is: " << jobId << endl;
         if (timeoutJobs[i].id == jobId) {
-            cout << "found" << endl;
             timeoutJobs.erase(timeoutJobs.begin() + i);
             return;
         }

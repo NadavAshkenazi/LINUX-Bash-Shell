@@ -23,7 +23,7 @@ class Command {
   pid_t _pid; // not zero only for built in commands
   bool isFinished; // TODO: should be updated by the dad- the shell after wait() finish. how to update bg process?
 public:
-    const char* cmd_line;
+    char* cmd_line;
     Command(const char* cmd_line);
   virtual ~Command();
 //  virtual void execute() = 0;
@@ -56,9 +56,10 @@ class PipeCommand : public Command {
 private:
     pid_t _pid1;
     pid_t _pid2;
+    JobsList* jobs;
 
 public:
-  PipeCommand(const char* cmd_line);
+  PipeCommand(const char* cmd_line, JobsList* jobs);
   virtual ~PipeCommand() {}
   void execute() override;
 };
@@ -68,7 +69,7 @@ class RedirectionCommand : public Command {
  public:
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override; //Todo: remove {} when implementing
   //void prepare() override;
   //void cleanup() override;
 };
@@ -136,13 +137,13 @@ class JobsList {
   };
 
 private:
-    int maxJobID;
     vector <JobEntry> jobList;
  public:
+    int maxJobID;
     queue<int> timeoutJobs;
     JobsList();
     ~JobsList();
-    void addJob(Command* cmd, JobState state);
+    int addJob(Command* cmd, JobState state);
     void printJobsList();
     void killAllJobs(); // why do we need?
     void removeFinishedJobs();

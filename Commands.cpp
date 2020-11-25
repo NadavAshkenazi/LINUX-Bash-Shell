@@ -25,11 +25,16 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define MAX_ARGS_NUM 20
 #define MAX_PWD_SIZE 1000000 // TODO: check
 #define ARGS_NUM_CD 1
+#define STDIN 0
+#define STDOUT 1
+#define STDERR 2
 #define MAX_SIZE 80
 #define DEBUG_PRINT cerr << "DEBUG: "
 
 #define EXEC(path, arg) \
   execvp((path), (arg));
+
+//#define _printSysCallErr(sysCall) "perror(\"a\" ); return" // todo debug
 
 //**************************************
 // Auxiliary Functions
@@ -94,7 +99,14 @@ void _removeBackgroundSign(char* cmd_line) {
 //**************************************
 // Command
 //**************************************
-Command::Command(const char *cmd_line): _pid(0),isFinished(false), cmd_line(cmd_line) {
+Command::Command(const char *cmd_line): _pid(0),isFinished(false){//, cmd_line(cmd_line) {
+
+//    string tempCmd = string (cmd_line); // todo remove
+//    cmd_line = tempCmd.c_str(); // todo remove
+
+    this->cmd_line = (char*)malloc(strlen(cmd_line)+1); //tempCmdLine [strlen(cmd_line)+1];
+    strcpy (this->cmd_line, cmd_line);
+    //cmd_line = tempCmdLine;
 
     char** args_temp = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
     int args_size = _parseCommandLine(cmd_line, args_temp);
@@ -128,9 +140,10 @@ void ExternalCommand::execute(){
     _removeBackgroundSign(clean_cmd_line);
 
     JobState state = BG;
-    if (wait)
+    if (_wait)
         state = FG;
-    jobs->addJob(this, state);
+    int jobID = jobs->addJob(this, state);
+    //cout << "added job" << this->args[0] << state << endl; // todo : not print these jobs- maybe not really added?
     //jobs->printFirstJobs();  // TODO: debug
 
     pid_t pid = fork();
@@ -150,6 +163,8 @@ void ExternalCommand::execute(){
                                 NULL};
         //kill (getpid(), SIGTSTP); // debug
         execv(args_to_bash[0], args_to_bash);
+        jobs->removeJobById(jobID);
+        jobs->maxJobID -- ;
         perror("smash error: execv failed");
         return;
     }
@@ -167,8 +182,15 @@ void ExternalCommand::execute(){
 //**************************************
 // PipeCommand
 //**************************************
-PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line), _pid1(-1), _pid2(-1){};
-void PipeCommand::execute() {
+PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){};
+void PipeCommand::execute() { // todo if job failed its still in job list
+
+    bool isBackground = _isBackgroundComamnd(cmd_line);
+
+    JobState state = BG;
+    if (!isBackground)
+        state = FG;
+    int pipeJobID = jobs->addJob(this, state);
 
     bool regularPipe = false;
     bool errorPipe = false;
@@ -206,8 +228,8 @@ void PipeCommand::execute() {
     if (pid1 == 0) { // first command
         setpgrp();
 
-        int fdEntry = regularPipe ? 1 : 2;  // 1 is stdout, 2 is stderr
-        if (dup2(fd[1], fdEntry) == -1) { // TODO: change to fdEntry
+        int fdEntry = regularPipe ? STDOUT : STDERR;
+        if (dup2(fd[1], fdEntry) == -1) {
             perror("smash error: dup2 failed");
             return;
         }
@@ -236,7 +258,7 @@ void PipeCommand::execute() {
         if (pid2 == 0) { // second command
             setpgrp();
 
-            if (dup2(fd[0], 0) == -1) {
+            if (dup2(fd[0], STDIN) == -1) {
                 perror("smash error: dup2 failed");
                 return;
             }
@@ -273,6 +295,55 @@ void PipeCommand::execute() {
     return;
 }
 
+//**************************************
+// RedirectionCommand
+//**************************************
+RedirectionCommand::RedirectionCommand(const char* cmd_line): Command(cmd_line){}
+void RedirectionCommand::execute() {
+//    bool regularRedirection = false;
+//    bool contRedirection = false;
+//
+//    int signLocation;
+//    string s_cmd = string(cmd_line);
+//
+//    if (s_cmd.find(">>") != string::npos) {
+//        contRedirection = true;
+//        signLocation = s_cmd.find("|&");
+//    } else if (s_cmd.find(">") != string::npos) {
+//        regularRedirection = true;
+//        signLocation = s_cmd.find("|");
+//    }
+//
+//    string cmd = s_cmd.substr(0, signLocation);
+//    int sizeOfSign = regularRedirection ? 1 : 2;
+//    string fileName = s_cmd.substr(signLocation + sizeOfSign);
+//
+//    pid_t pid = fork();
+//
+//    if (pid < 0 ){
+//        perror("smash error: fork failed");
+//        return;
+//    }
+//    else if (pid == 0){ // child
+//        if (close(STDOUT) == -1){
+//            perror("smash error: close failed");
+//            return;
+//        }
+//        if (open(fileName,O_CREAT)){ // todo think if its for >> or >
+//            perror("smash error: open failed");
+//            return;
+//        }
+//
+//        SmallShell &smash = SmallShell::getInstance();
+//        smash.CreateCommand(cmd.c_str());
+//    }
+//    else{ // shell
+//
+//    }
+
+
+}
+
 
 //**************************************
 // BuiltInCommand
@@ -287,6 +358,7 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
         }
     }
 }
+
 
 //**************************************
 // ChangeDirCommand
@@ -354,7 +426,6 @@ void ShowPidCommand::execute() {
 //**************************************
 
 QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs) {}
-
 
 //**************************************
 // JobsCommand
@@ -432,7 +503,7 @@ JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(c
     time_t* temp_time= NULL;
     timeStamp = time(temp_time); //todo: check time format
 }
-JobsList::JobsList(): maxJobID(0){
+JobsList::JobsList(): maxJobID(-1){
     vector <JobEntry> jobList;
     queue<int> timeoutJobs;
 }
@@ -441,15 +512,18 @@ JobsList::~JobsList(){ // TODO: think
 //        delete (*it);
 //    }
 }
-void JobsList::addJob(Command* cmd, JobState state){
+int JobsList::addJob(Command* cmd, JobState state){
 
+    removeFinishedJobs();
     JobEntry newJob = JobEntry(cmd, maxJobID+1, state);
     maxJobID++;
     jobList.push_back(newJob);
+    cout << "added job: " << maxJobID << endl;
+    return maxJobID;
 }
 void JobsList::printJobsList(){
 
-    //removeFinishedJobs();
+    removeFinishedJobs();
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
 
         if ((*it).state == FG)
@@ -471,13 +545,13 @@ void JobsList::printJobsList(){
     }
 
 }
-void JobsList::removeFinishedJobs(){ // TODO: how do we know
+void JobsList::removeFinishedJobs(){
 
-    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
-        if ((*it).command->getisFinished()){
-            jobList.erase(it);
-            delete (*it).command;
-            //delete (*it);
+    for(int i=0 ; i < jobList.size() ; i ++ ){
+        if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) == jobList[i].command->getPID()){
+            delete jobList[i].command;
+            jobList.erase(jobList.begin() +i);
+            i--; // to conform with joblist size
         }
     }
 }
@@ -493,7 +567,6 @@ void JobsList::changeJobStatus (int jobId, JobState state){
     JobEntry* jobToChange = getJobById(jobId);
     jobToChange->state = state;
 }
-
 JobsList::JobEntry* JobsList::getFgJob() {
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
         if ((*it).state == FG){
@@ -503,16 +576,16 @@ JobsList::JobEntry* JobsList::getFgJob() {
     return NULL;
 }
 
-
 void JobsList::printFirstJobs(){
    cout << jobList.begin()->command->getCommandName() <<  jobList.begin()->state << endl;
 }
 
-void JobsList::removeJobById(int jobId){
-    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
-        if ((*it).jobID == jobId){
-            jobList.erase(it);
-            delete (*it).command;
+void JobsList::removeJobById(int jobId){ // todo remove also from timeout vector
+    for(int i=0 ; i < jobList.size() ; i ++ ){
+        if (jobList[i].jobID == jobId){
+            delete jobList[i].command;
+            jobList.erase(jobList.begin() +i);
+            return;
         }
     }
     return;
@@ -548,7 +621,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 //        return new RedirectionCommand(cmd_line);
     }
     else if (cmd_s.find("|") != std::string::npos){
-        return new PipeCommand(cmd_line);
+        return new PipeCommand(cmd_line, this->jobsList);
     }
     else if (cmd_s.find("bg") != std::string::npos){
 //        return new BackgroundCommand(cmd_line); //todo: add jobslist
@@ -594,6 +667,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
     cmd->execute();
+
 //    Command* cmd = new Command(cmd_line);
 //    jobsList->addJob(cmd, FG);
 //    JobsList::JobEntry* FG_job =  jobsList->getFgJob();

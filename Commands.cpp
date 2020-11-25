@@ -118,7 +118,7 @@ Command::Command(const char *cmd_line): _pid(0),isFinished(false){//, cmd_line(c
 }
 Command::~Command() {}
 pid_t Command::getPID(){return _pid;}
-string Command::getCommandName() {return args[0]; }
+string Command::getCommandName() {return string(cmd_line); }
 bool Command::getisFinished() {return isFinished;}
 
 
@@ -134,16 +134,21 @@ ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs): Command(
         }
     }
 
+    JobState state = BG;
+    if (_wait)
+        state = FG;
+    int jobID = jobs->addJob(this, state);
 }
+
 void ExternalCommand::execute(){
     char clean_cmd_line[strlen(cmd_line) + 1];
     strcpy(clean_cmd_line,cmd_line);
     _removeBackgroundSign(clean_cmd_line);
 
-    JobState state = BG;
-    if (_wait)
-        state = FG;
-    int jobID = jobs->addJob(this, state);
+//    JobState state = BG;
+//    if (_wait)
+//        state = FG;
+//    int jobID = jobs->addJob(this, state);
     //cout << "added job" << this->args[0] << state << endl; // todo : not print these jobs- maybe not really added?
     //jobs->printFirstJobs();  // TODO: debug
 
@@ -164,7 +169,7 @@ void ExternalCommand::execute(){
                                 NULL};
         //kill (getpid(), SIGTSTP); // debug
         execv(args_to_bash[0], args_to_bash);
-        jobs->removeJobById(jobID);
+        //jobs->removeJobById(jobID); // todo fix
         jobs->maxJobID -- ;
         perror("smash error: execv failed");
         return;
@@ -175,7 +180,6 @@ void ExternalCommand::execute(){
         if (_wait){
             waitpid(pid,NULL,WUNTRACED);
         }
-
     }
 }
 
@@ -183,15 +187,15 @@ void ExternalCommand::execute(){
 //**************************************
 // PipeCommand
 //**************************************
-PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){};
-void PipeCommand::execute() { // todo if job failed its still in job list
+PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){}; // todo how should we print the name of pipe command
+void PipeCommand::execute() { // todo need to update real proccess pid
 
-    bool isBackground = _isBackgroundComamnd(cmd_line);
+ //   bool isBackground = _isBackgroundComamnd(cmd_line);
 
-    JobState state = BG;
-    if (!isBackground)
-        state = FG;
-    int pipeJobID = jobs->addJob(this, state);
+//    JobState state = BG;
+//    if (!isBackground)
+//        state = FG;
+//    int pipeJobID = jobs->addJob(this, state);
 
     bool regularPipe = false;
     bool errorPipe = false;
@@ -203,6 +207,7 @@ void PipeCommand::execute() { // todo if job failed its still in job list
         errorPipe = true;
         pipeLocation = s_cmd.find("|&");
     } else if (s_cmd.find("|") != string::npos) {
+        //cout << "in | if" << endl; // todo debug
         regularPipe = true;
         pipeLocation = s_cmd.find("|");
     }
@@ -210,6 +215,9 @@ void PipeCommand::execute() { // todo if job failed its still in job list
     string cmd_1 = s_cmd.substr(0, pipeLocation);
     int sizeOfPipe = regularPipe ? 1 : 2;
     string cmd_2 = s_cmd.substr(pipeLocation + sizeOfPipe);
+    //cout << "cmd_1 = " << cmd_1 << endl; // todo debug
+    //cout << "cmd_2 = " << cmd_2 << endl; // todo debug
+
 
     int fd[2];
     if (pipe(fd) == -1) {
@@ -218,6 +226,8 @@ void PipeCommand::execute() { // todo if job failed its still in job list
     }
 
     SmallShell &smash = SmallShell::getInstance();
+    Command* firstCommand= smash.CreateCommand(cmd_1.c_str());
+    Command* secondCommand= smash.CreateCommand(cmd_2.c_str());
 
     pid_t pid1 = fork();
 
@@ -226,7 +236,7 @@ void PipeCommand::execute() { // todo if job failed its still in job list
         return;
     }
 
-    if (pid1 == 0) { // first command
+    if (pid1 == 0) {  // first command
         setpgrp();
 
         int fdEntry = regularPipe ? STDOUT : STDERR;
@@ -244,7 +254,8 @@ void PipeCommand::execute() { // todo if job failed its still in job list
             return;
         }
 
-        smash.executeCommand(cmd_1.c_str());
+        //smash.executeCommand(cmd_1.c_str());
+        firstCommand->execute();
         exit(0);
 
     } else { // shell code
@@ -273,7 +284,8 @@ void PipeCommand::execute() { // todo if job failed its still in job list
                 return;
             }
 
-            smash.executeCommand(cmd_2.c_str());
+            //smash.executeCommand(cmd_2.c_str());
+            secondCommand->execute();
             exit(0);
         } else {
 
@@ -286,17 +298,24 @@ void PipeCommand::execute() { // todo if job failed its still in job list
                 perror("smash error: close failed");
                 return;
             }
-
-            waitpid( pid1, NULL, WUNTRACED);
-            waitpid( pid2, NULL, WUNTRACED);
-
             _pid2 = pid2;
+
+            cout << "pid1 = " << pid1 << endl;
+            cout << "pid2 = " << pid2 << endl;
+
+            waitpid( pid1, NULL, 0);
+            waitpid( pid2, NULL, 0);
+//            waitpid( pid1, NULL, WUNTRACED);
+//            waitpid( pid2, NULL, WUNTRACED);
+            //cout << "pid2 finished: " << waitpid( pid2, NULL, WUNTRACED) << endl; // todo debug
+            //cout << "pid2 finished2: " << waitpid( pid2, NULL, WUNTRACED) << endl; // todo debug
+            //cout << "pid2 in remove : " << waitpid( pid2, NULL, WNOHANG ) <<endl; // todo debug
         }
     }
     return;
 }
 pid_t PipeCommand::getPID() {
-    cout << "enter pipe pid " << endl;
+    //cout << "enter pipe pid " << endl; // todo debug
     return _pid2;
 }
 
@@ -356,7 +375,6 @@ void RedirectionCommand::execute() {
 BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
     vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"}; // TODO: check if need to do redirection
 
-    for (vector<string>::iterator it_args = args.begin(); it_args != args.end(); it_args++) {
     for (vector<string>::iterator it_args = args.begin(); it_args != args.end(); it_args++) {
         for (vector<string>::iterator it_ignore = ignoreArgs.begin(); it_ignore != ignoreArgs.end(); ++it_ignore) {
             if (*it_args == *it_ignore)
@@ -560,8 +578,8 @@ void JobsList::printJobsList(){
             continue;
 
         cout << "[" << (*it).jobID << "]" ;
-        cout << (*it).command->getCommandName() << ":" ;
-        cout << (*it).command->getPID();
+        cout << (*it).command->getCommandName() << ": " ;
+        cout << (*it).command->getPID() << " ";
 
         time_t* current_time =  NULL;
         double timeElapsed = difftime (time(current_time), (*it).timeStamp);
@@ -578,8 +596,9 @@ void JobsList::printJobsList(){
 void JobsList::removeFinishedJobs(){
 
     for(int i=0 ; i < jobList.size() ; i ++ ){
-        cout << "check if finished: " << jobList[i].command->getPID();
-        if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) == jobList[i].command->getPID()){
+        //cout << "check if finished: " << jobList[i].command->getPID(); // todo debug
+        if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG)  == jobList[i].command->getPID()){
+            cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl;
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
             i--; // to conform with joblist size
@@ -721,8 +740,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
     cmd->execute();
-
-//    Command* cmd = new Command(cmd_line);
+//    Command* cmd = new Command(cmd_line); // todo debug
 //    jobsList->addJob(cmd, FG);
 //    JobsList::JobEntry* FG_job =  jobsList->getFgJob();
 //    cout << FG_job->state << endl;

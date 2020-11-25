@@ -29,7 +29,7 @@ public:
   virtual ~Command();
 //  virtual void execute() = 0;
   virtual void execute(){};
-  pid_t getPID();
+  virtual pid_t getPID();
 //  virtual void prepare();
 //  virtual void cleanup();
   string getCommandName(); // Todo: implement
@@ -63,6 +63,7 @@ public:
   PipeCommand(const char* cmd_line, JobsList* jobs);
   virtual ~PipeCommand() {}
   void execute() override;
+  pid_t getPID();
 };
 
 class RedirectionCommand : public Command {

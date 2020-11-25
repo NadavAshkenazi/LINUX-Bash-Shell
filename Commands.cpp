@@ -295,6 +295,10 @@ void PipeCommand::execute() { // todo if job failed its still in job list
     }
     return;
 }
+pid_t PipeCommand::getPID() {
+    cout << "enter pipe pid " << endl;
+    return _pid2;
+}
 
 //**************************************
 // RedirectionCommand
@@ -352,6 +356,7 @@ void RedirectionCommand::execute() {
 BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
     vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"}; // TODO: check if need to do redirection
 
+    for (vector<string>::iterator it_args = args.begin(); it_args != args.end(); it_args++) {
     for (vector<string>::iterator it_args = args.begin(); it_args != args.end(); it_args++) {
         for (vector<string>::iterator it_ignore = ignoreArgs.begin(); it_ignore != ignoreArgs.end(); ++it_ignore) {
             if (*it_args == *it_ignore)
@@ -573,6 +578,7 @@ void JobsList::printJobsList(){
 void JobsList::removeFinishedJobs(){
 
     for(int i=0 ; i < jobList.size() ; i ++ ){
+        cout << "check if finished: " << jobList[i].command->getPID();
         if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) == jobList[i].command->getPID()){
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);

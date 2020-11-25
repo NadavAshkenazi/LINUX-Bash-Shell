@@ -115,7 +115,7 @@ class QuitCommand : public BuiltInCommand {
   void execute() override {}; //Todo: remove {} when implementing
 };
 
-class TimeoutCommand : public BuiltInCommand {
+class TimeoutCommand : public Command {
 // TODO: Add your data members public
     JobsList* jobs;
 public:

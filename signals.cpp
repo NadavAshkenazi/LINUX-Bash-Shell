@@ -29,6 +29,7 @@ void ctrlCHandler(int sig_num) { //todo: check with pipe and redirections
     pid_t deletedPid = fgJob->command->getPID();
     smash.jobsList->removeJobById(fgJob->jobID);
     cout << "smash: process " << deletedPid << " was killed" << endl;
+    return;
 }
 
 void alarmHandler(int sig_num) {
@@ -45,5 +46,6 @@ void alarmHandler(int sig_num) {
     string cmd_line = timeoutJob->command->cmd_line;
     smash.jobsList->removeJobById(timeoutJob->jobID);
     cout << "smash: process " << cmd_line << " timed out!" << endl;
+    return;
 }
 

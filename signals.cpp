@@ -36,13 +36,15 @@ void alarmHandler(int sig_num) {
     cout << "smash got alarm" << endl;
     SmallShell& smash = SmallShell::getInstance();
     JobsList::JobEntry* timeoutJob = smash.jobsList->getTimeoutJob();
-    if (kill(timeoutJob->command->getPID(), SIGKILL) != 0){
-        perror("smash error: kill failed"); // kill is the syscall that failed
-        return;
+    if (timeoutJob != NULL){
+        if (kill(timeoutJob->command->getPID(), SIGKILL) != 0){
+            perror("smash error: kill failed"); // kill is the syscall that failed
+            return;
+        }
     }
     string cmd_line = timeoutJob->command->cmd_line;
+    cout << cmd_line << endl;
     smash.jobsList->removeJobById(timeoutJob->jobID);
-    smash.jobsList->timeoutJobs.pop();
     cout << "smash: process " << cmd_line << " timed out!" << endl;
 }
 

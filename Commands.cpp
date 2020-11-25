@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+#include <sstream>
 
 using namespace std;
 
@@ -491,7 +492,30 @@ void TimeoutCommand::execute() {
         command += " ";
     }
     SmallShell& smash = SmallShell::getInstance();
-    smash.executeCommand(command.c_str());
+    pid_t pid = fork();
+    if (pid < 0){
+        perror("smash error: fork failed");
+        return;
+    }
+
+    int sleep = stoi(args[1]);
+
+    if (pid == 0){ // child process
+        setpgrp();
+        time_t* tempTime= NULL;
+        time_t start = time(tempTime);
+        time_t now = start;
+        while (now < start + sleep){
+            now = time(tempTime);
+        }
+        kill(smash.smashPid, SIGALRM);
+        exit(0);
+    }
+    else{ // shell
+        smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep);
+        smash.executeCommand(command.c_str());
+        return;
+    }
     //todo: fork - parent - execute, child - send signal
 }
 
@@ -505,7 +529,7 @@ JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(c
 }
 JobsList::JobsList(): maxJobID(-1){
     vector <JobEntry> jobList;
-    queue<int> timeoutJobs;
+    vector<timeoutJob> timeoutJobs;
 }
 JobsList::~JobsList(){ // TODO: think
 //    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
@@ -520,6 +544,7 @@ int JobsList::addJob(Command* cmd, JobState state){
     jobList.push_back(newJob);
     cout << "added job: " << maxJobID << endl;
     return maxJobID;
+
 }
 void JobsList::printJobsList(){
 
@@ -585,16 +610,43 @@ void JobsList::removeJobById(int jobId){ // todo remove also from timeout vector
         if (jobList[i].jobID == jobId){
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
+            cout << "before removing timeout" << endl;
+            removeTimeoutJob(jobId);
             return;
         }
     }
     return;
 }
 
+void JobsList::addTimeoutJob(int jobId, int sleepTime) {
+    timeoutJob newJob = timeoutJob(jobId, sleepTime);
+    timeoutJobs.push_back(newJob);
+}
 
 JobsList::JobEntry* JobsList::getTimeoutJob(){
-    int jobID = this->timeoutJobs.front();
-    return this->getJobById(jobID);
+    for (vector<timeoutJob>::iterator it = timeoutJobs.begin() ; it != timeoutJobs.end(); ++it){
+        JobEntry* job = getJobById((it->id));
+        time_t* tempTime= NULL;
+        time_t now = time(tempTime);
+        cout << "job " << it->id << " timeStamp: " << job->timeStamp << " now: " << now << " sleepTime " << it->sleepTime << " diff " << now - job->timeStamp << endl;
+        cout << "finished: " << (now - job->timeStamp >= it->sleepTime) << endl;
+        if (now - job->timeStamp >= it->sleepTime){
+            return job;
+        }
+    }
+    return NULL;
+}
+
+void JobsList::removeTimeoutJob(int jobId){
+    for (int i = 0; i< timeoutJobs.size(); i++){
+        if (timeoutJobs[i].id = jobId){
+            cout << "found" << endl;
+            timeoutJobs.erase(timeoutJobs.begin() + i);
+            cout << "erase" << endl;
+            return;
+        }
+    }
+    return;
 }
 
 //**************************************

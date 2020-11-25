@@ -5,13 +5,14 @@
 #include <string>
 #include <time.h>
 #include <stdio.h>
-#include <queue>
+#include <map>
 
 using namespace std;
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define HISTORY_MAX_RECORDS (50)
+
 
 enum JobState {STOPPED, FG, BG};
 
@@ -136,11 +137,18 @@ class JobsList {
       ~JobEntry(){};
   };
 
+  class timeoutJob{
+    public:
+        int id;
+        int sleepTime;
+        timeoutJob(int id, int sleepTime): id(id),sleepTime(sleepTime) {};
+      ~timeoutJob(){};
+    };
 private:
     vector <JobEntry> jobList;
  public:
     int maxJobID;
-    queue<int> timeoutJobs;
+    vector <timeoutJob> timeoutJobs; //TODO: can built in get timeout
     JobsList();
     ~JobsList();
     int addJob(Command* cmd, JobState state);
@@ -154,7 +162,9 @@ private:
     void changeJobStatus (int jobId, JobState state);
     JobEntry* getFgJob();
     void printFirstJobs();
+    void addTimeoutJob(int jobId, int sleepTime);
     JobEntry* getTimeoutJob();
+    void removeTimeoutJob(int jobId);
     };
 
 class JobsCommand : public BuiltInCommand {

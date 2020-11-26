@@ -21,7 +21,7 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
             else{
                 JobsList::JobEntry* pipeJob1 = smash.jobsList->getJobByPid(pipePid1);
                 pipeJob1->state = STOPPED;
-                smash.jobsList->changeJobId(pipeJob1, smash.jobsList->maxJobID);
+                smash.jobsList->changeJobId(pipeJob1, smash.jobsList->maxJobID + 1);
                 smash.jobsList->maxJobID++;
                 cout << "smash: process " << pipePid1<< " was stopped" << endl;
             }
@@ -30,7 +30,7 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
             JobsList::JobEntry* pipeJob1 = smash.jobsList->getJobByPid(pipePid1);
             pipeJob1->state = STOPPED;
             if (pipeJob1->formerJobId == NOVALUE){
-                smash.jobsList->changeJobId(pipeJob1, smash.jobsList->maxJobID);
+                smash.jobsList->changeJobId(pipeJob1, smash.jobsList->maxJobID + 1);
                 smash.jobsList->maxJobID++;
             } else {
                 smash.jobsList->changeJobId(pipeJob1, pipeJob1->formerJobId);
@@ -45,7 +45,7 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
             JobsList::JobEntry* pipeJob2 = smash.jobsList->getJobByPid(pipePid2);
             pipeJob2->state = STOPPED;
             if (pipeJob2->formerJobId == NOVALUE){
-                smash.jobsList->changeJobId(pipeJob2, smash.jobsList->maxJobID);
+                smash.jobsList->changeJobId(pipeJob2, smash.jobsList->maxJobID + 1);
                 smash.jobsList->maxJobID++;
             } else {
                 smash.jobsList->changeJobId(pipeJob2, pipeJob2->formerJobId);
@@ -118,7 +118,7 @@ void ctrlCHandler(int sig_num) { //todo: check with pipe and redirections
 
 void alarmHandler(int sig_num) {
   // TODO: Add your implementation
-    cout << "smash got alarm" << endl;
+    cout << "smash: got an alarm" << endl;
     SmallShell& smash = SmallShell::getInstance();
     if (smash.jobsList->hasPipeInFg){
         pid_t pipePid1 = smash.jobsList->pipePid1;
@@ -131,8 +131,8 @@ void alarmHandler(int sig_num) {
                 return;
             }
             else{
-                smash.jobsList->removeJobById(pipeJob1->jobID);
                 string cmd_line1 = pipeJob1->command->cmd_line;
+                smash.jobsList->removeFinishedJobs();
                 cout << "smash: process " << cmd_line1 << " timed out!" << endl;
             }
         }
@@ -142,8 +142,8 @@ void alarmHandler(int sig_num) {
                 return;
             }
             else{
-                smash.jobsList->removeJobById(pipeJob2->jobID);
                 string cmd_line2 = pipeJob2->command->cmd_line;
+                smash.jobsList->removeFinishedJobs();
                 cout << "smash: process " << cmd_line2 << " timed out!" << endl;
             }
         }

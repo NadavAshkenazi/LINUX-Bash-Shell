@@ -17,7 +17,7 @@ using namespace std;
 #define HISTORY_MAX_RECORDS (50)
 
 
-enum JobState {STOPPED, FG, BG};
+enum JobState {STOPPED, FG, BG, NOPIPE};
 
 class JobsList;
 

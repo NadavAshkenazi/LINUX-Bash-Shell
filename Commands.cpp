@@ -282,8 +282,8 @@ void PipeCommand::execute() {
             secondCommand->setPid(_pid2);
             jobs->pipePid1= _pid1;
             jobs->pipePid2= _pid2;
-            //cout << "pid1 = " << pid1 << endl;// todo debug
-            //cout << "pid2 = " << pid2 << endl;// todo debug
+            cout << "pid1 from pipe = " << pid1 << endl;// todo debug
+            cout << "pid2 from pipe = " << pid2 << endl;// todo debug
 
             if (!_isBackgroundComamnd(cmd_line)){
 //                kill (getpid(), SIGALRM); // TODO: debug
@@ -704,14 +704,12 @@ void TimeoutCommand::execute() {
             if (!_isBuiltIn(cmd1)){
                 if (_isBackgroundComamnd(cmd1.c_str())){
                     smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep, PIPE1);
-                    smash.jobsList->maxJobID++;
                 }
                 smash.jobsList->addTimeoutJob(-1, sleep);
             }
             if (!_isBuiltIn(cmd2)){
                 if (_isBackgroundComamnd(cmd2.c_str())){
                     smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep, PIPE2);
-                    smash.jobsList->maxJobID++;
                 }
                 smash.jobsList->addTimeoutJob(-1, sleep);
             }
@@ -719,7 +717,6 @@ void TimeoutCommand::execute() {
         else{
             if (_isBackgroundComamnd(command.c_str())){
                 smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep);
-                smash.jobsList->maxJobID++;
             }
             else{
                 smash.jobsList->addTimeoutJob(-1, sleep);
@@ -768,6 +765,8 @@ int JobsList::addJob(Command* cmd, JobState state){
 void JobsList::printJobsList(){
 
     removeFinishedJobs();
+    cout << "pipePid1 " << pipePid1 << endl; //todo: debug
+    cout << "pipePid2 " << pipePid2 << endl; //todo: debug
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
 
         if ((*it).state == FG)
@@ -803,9 +802,8 @@ void JobsList::removeFinishedJobs(){
     }
 }
 JobsList::JobEntry* JobsList::getJobById(int jobId){
-    cout << "jobID: " <<jobId << endl; //TODO : DEBUG
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
-        cout << "current " << (*it).jobID << endl;
+//        cout << "[" << (*it).jobID  << "]"<< (*it).command->getCommandName() << endl; //todo: debug
         if ((*it).jobID == jobId){
             return &(*it);
         }
@@ -867,32 +865,25 @@ void JobsList::addTimeoutJob(int jobId, int sleepTime, int pipe) {
 }
 JobsList::JobEntry* JobsList::getTimeoutJob(int pipe){
     for (vector<timeoutJob>::iterator it = timeoutJobs.begin() ; it != timeoutJobs.end(); ++it){
-        cout << "pipe " << pipe << endl;
-        cout << "id: " << it->id << endl;
         JobEntry* job = getJobById((it->id));
         time_t* tempTime= NULL;
         time_t now = time(tempTime);
-        cout << "finish: " << (now - job->timeStamp >= it->sleepTime) <<endl;
         if (now - job->timeStamp >= it->sleepTime){
             if (pipe == 1){
                 if (job->command->getPID() == pipePid1){
-                    cout << "pipe 1" << endl;
                     return job;
                 }
             }
             if (pipe == 2){
                 if (job->command->getPID() == pipePid2){
-                    cout << "pipe 2" << endl;
                     return job;
                 }
             }
             else{
-                cout << "not pipe timeout" << endl;
                 return job;
             }
         }
     }
-    cout << "NULL returned" << endl;
     return NULL;
 }
 void JobsList::removeTimeoutJob(int jobId){

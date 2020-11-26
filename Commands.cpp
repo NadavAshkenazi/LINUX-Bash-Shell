@@ -15,7 +15,8 @@
 #include <stdlib.h>
 #include <typeinfo>
 
-#define _DEFAULT_SOURCE
+#define PIPE1_ID -2
+#define PIPE2_ID -3
 
 using namespace std;
 
@@ -184,26 +185,28 @@ void ExternalCommand::setPid(pid_t pid){
 //**************************************
 // PipeCommand
 //**************************************
-PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){
+
+void trimForPipe(const char* cmd_line, string* cmd1, string* cmd2, bool* regularPipe){
     string s_cmd = string(cmd_line);
     int pipeLocation;
 
     if (s_cmd.find("|&") != string::npos) {
-        regularPipe = false;
+        *regularPipe = false;
         pipeLocation = s_cmd.find("|&");
     } else if (s_cmd.find("|") != string::npos) {
         //cout << "in | if" << endl; // todo debug
-        regularPipe = true;
+        *regularPipe = true;
         pipeLocation = s_cmd.find("|");
     }
 
     bool isBackground = _isBackgroundComamnd(cmd_line);
-    _cmd1 = _trim(s_cmd.substr(0, pipeLocation)) + (isBackground ? " &" : "");
+    *cmd1 = _trim(s_cmd.substr(0, pipeLocation)) + (isBackground ? " &" : "");
     int sizeOfPipe = regularPipe ? 1 : 2;
-    _cmd2 = _trim(s_cmd.substr(pipeLocation + sizeOfPipe));
-    //cout << "cmd_1 = " << _cmd1 << endl; // todo debug
-    //cout << "cmd_2 = " << _cmd2 << endl; // todo debug
+    *cmd2 = _trim(s_cmd.substr(pipeLocation + sizeOfPipe));
+}
 
+PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){
+    trimForPipe(cmd_line, &_cmd1, &_cmd2, &regularPipe);
     jobs->hasPipeInFg = true;
 };
 void PipeCommand::execute() {
@@ -281,9 +284,11 @@ void PipeCommand::execute() {
             jobs->pipePid2= _pid2;
             //cout << "pid1 = " << pid1 << endl;// todo debug
             //cout << "pid2 = " << pid2 << endl;// todo debug
+
             if (!_isBackgroundComamnd(cmd_line)){
-                waitpid( _pid1, NULL, 0);
-                waitpid( _pid2, NULL, 0);
+//                kill (getpid(), SIGALRM); // TODO: debug
+                waitpid( _pid1, NULL, WUNTRACED);
+                waitpid( _pid2, NULL, WUNTRACED);
             }
             jobs->hasPipeInFg = false;
             jobs->pipePid1= 0;
@@ -631,7 +636,18 @@ void TimeoutCommand::execute() {
         exit(0);
     }
     else{ // shell
-        smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep);
+//        if (string(cmd_line).find("|") != std::string::npos){
+//            smash.jobsList->addTimeoutJob(-1, sleep);
+//            smash.jobsList->addTimeoutJob(-1, sleep);
+//        }
+//        else{
+            if (_isBackgroundComamnd(cmd_line)){
+                smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep);
+            }
+            else{
+                smash.jobsList->addTimeoutJob(-1, sleep);
+            }
+//        }
         smash.executeCommand(command.c_str());
         return;
     }
@@ -717,6 +733,16 @@ JobsList::JobEntry* JobsList::getJobById(int jobId){
     }
     return NULL;
 }
+
+JobsList::JobEntry* JobsList::getJobByPid(pid_t pid){
+    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+        if ((*it).command->getPID() == pid){
+            return &(*it);
+        }
+    }
+    return NULL;
+}
+
 void JobsList::changeJobStatus (int jobId, JobState state){
     jobList[jobId].state = state;
 //    JobEntry* jobToChange = getJobById(jobId);
@@ -744,20 +770,34 @@ void JobsList::removeJobById(int jobId){
     return;
 }
 
-void JobsList:: changeJobId(JobsList::JobEntry* job){
-    job->jobID = ++maxJobID;
+void JobsList::removeJobByPid(pid_t pid){
+    for(int i=0 ; i < jobList.size() ; i ++ ){
+        if (jobList[i].command->getPID() == pid){
+            int jobId = jobList[i].jobID;
+            delete jobList[i].command;
+            jobList.erase(jobList.begin() +i);
+            removeTimeoutJob(jobId);
+        }
+    }
+    return;
 }
-void JobsList::addTimeoutJob(int jobId, int sleepTime) {
-    timeoutJob newJob = timeoutJob(jobId, sleepTime);
+
+void JobsList:: changeJobId(JobsList::JobEntry* job, int newId){
+    job->jobID = newId;
+}
+void JobsList::addTimeoutJob(int jobId, int sleepTime, pid_t pid) {
+    timeoutJob newJob = timeoutJob(jobId, sleepTime, pid);
     timeoutJobs.push_back(newJob);
 }
-JobsList::JobEntry* JobsList::getTimeoutJob(){
+JobsList::JobEntry* JobsList::getTimeoutJob(pid_t pid){
     for (vector<timeoutJob>::iterator it = timeoutJobs.begin() ; it != timeoutJobs.end(); ++it){
         JobEntry* job = getJobById((it->id));
         time_t* tempTime= NULL;
         time_t now = time(tempTime);
         if (now - job->timeStamp >= it->sleepTime){
-            return job;
+            if (pid == -1 || job->command->getPID() == pid){
+                return job;
+            }
         }
     }
     return NULL;

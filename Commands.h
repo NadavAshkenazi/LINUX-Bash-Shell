@@ -160,7 +160,8 @@ class JobsList {
     public:
         int id;
         int sleepTime;
-        timeoutJob(int id, int sleepTime): id(id),sleepTime(sleepTime) {};
+        pid_t pid;
+        timeoutJob(int id, int sleepTime, pid_t pid = -1) : id(id),sleepTime(sleepTime), pid(pid) {};
       ~timeoutJob(){};
     };
 
@@ -184,12 +185,14 @@ class JobsList {
     void changeJobStatus (int jobId, JobState state);
     JobEntry* getFgJob();
     void printFirstJobs();
-    void addTimeoutJob(int jobId, int sleepTime);
-    JobEntry* getTimeoutJob();
+    void addTimeoutJob(int jobId, int sleepTime, pid_t pid = -1);
+    JobEntry* getTimeoutJob(pid_t pid = -1);
     void removeTimeoutJob(int jobId);
     void resetJobTimerById(int jobId);
-    void changeJobId(JobsList::JobEntry* job);
-    };
+    void changeJobId(JobsList::JobEntry* job, int newId);
+    JobEntry* getJobByPid(pid_t pid);
+    void removeJobByPid(pid_t pid);
+};
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members

@@ -50,6 +50,7 @@ private:
     bool _wait;
     JobsList* jobs;
     int _jobID;
+    char* clean_cmd_line;
 public:
   ExternalCommand(const char* cmd_line, JobsList* jobs);
   virtual ~ExternalCommand() {}

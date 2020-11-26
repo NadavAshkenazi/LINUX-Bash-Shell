@@ -126,13 +126,9 @@ bool Command::getisFinished() {return isFinished;}
 //**************************************
 // ExternalCommand
 //**************************************
-ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), jobs(jobs) {
-    _wait = true;
-    for (vector<string>::iterator it = args.begin(); it != args.end(); it++) {
-        if (*it == "&"){
-            _wait = false;
-        }
-    }
+ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), clean_cmd_line((char*)cmd_line), jobs(jobs) {
+    _wait = !_isBackgroundComamnd;
+    _removeBackgroundSign(clean_cmd_line);
 
     JobState state = BG;
     if (_wait)
@@ -140,17 +136,6 @@ ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs): Command(
     _jobID = jobs->addJob(this, state);
 }
 void ExternalCommand::execute(){
-    char clean_cmd_line[strlen(cmd_line) + 1];
-    strcpy(clean_cmd_line,cmd_line);
-    _removeBackgroundSign(clean_cmd_line);
-
-//    JobState state = BG; //todo: debug
-//    if (_wait)
-//        state = FG;
-//    int jobID = jobs->addJob(this, state);
-    //cout << "added job" << this->args[0] << state << endl;
-    //jobs->printFirstJobs();
-
     pid_t pid = fork();
 
     if (pid < 0){
@@ -363,34 +348,32 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
 // ChangeDirCommand
 //**************************************
 ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) :BuiltInCommand(cmd_line), plastPwd(plastPwd){}
-void ChangeDirCommand::execute(){
-    if (args.size()-1 > ARGS_NUM_CD){
+void ChangeDirCommand::execute() {
+    if (args.size() - 1 > ARGS_NUM_CD) {
         perror("smash error: cd: too many arguments");
         return;
     }
-    if (args.size()-1 < ARGS_NUM_CD){
+    if (args.size() - 1 < ARGS_NUM_CD) {
         perror("smash error: cd: too few arguments");
         return;
     }
 
-    if (string(args[ARGS_NUM_CD]) != "-"){
-        char* temp = *plastPwd; // just in case cd failed
-        char* pwd = (char*)malloc(MAX_PWD_SIZE);
+    if (string(args[ARGS_NUM_CD]) != "-") {
+        char *temp = *plastPwd; // just in case cd failed
+        char *pwd = (char *) malloc(MAX_PWD_SIZE);
         getcwd(pwd, MAX_PWD_SIZE);
         *plastPwd = pwd;
 
-        if (chdir((const char *) (args[ARGS_NUM_CD]).c_str()) != 0){ // cd failed
+        if (chdir((const char *) (args[ARGS_NUM_CD]).c_str()) != 0) { // cd failed
             perror("smash error: chdir failed");
             *plastPwd = temp;
             return;
         }
-    }
-    else{
-        if (*plastPwd == NULL){
+    } else {
+        if (*plastPwd == NULL) {
             perror("smash error: cd: OLDPWD not set");
             return;
-        }
-        else{
+        } else {
             args[ARGS_NUM_CD] = *plastPwd;
             ChangeDirCommand::execute();
         }
@@ -589,8 +572,7 @@ void ChangePromptCommand::execute() {
         *currentPromp = "smash>";
     }
     else{
-        string test = this->args[1] + ">";
-        *currentPromp = this->args[1] + ">";
+        *currentPromp = this->args[1] + "> ";
     }
 }
 
@@ -797,7 +779,7 @@ void JobsList::resetJobTimerById(int jobId){
 //**************************************
 // SmallShell
 //**************************************
-SmallShell::SmallShell(): currentPrompt("smash>"),plastPwd(NULL) {
+SmallShell::SmallShell(): currentPrompt("smash> "),plastPwd(NULL) {
     jobsList = new JobsList();
     smashPid = getpid();
     if (smashPid <0){
@@ -841,11 +823,11 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     else if (cmd_s.find("quit") != std::string::npos){
         return new QuitCommand(cmd_line);
     }
+    else if (cmd_s.find("chprompt") != std::string::npos) {
+        return new ChangePromptCommand(cmd_line, &this->currentPrompt);
+    }
     else if (cmd_s.find("kill") != std::string::npos){
         return new KillCommand(cmd_line);
-    }
-    else if (cmd_s.find("chprompt") != std::string::npos){
-        return new ChangePromptCommand(cmd_line, &this->currentPrompt);
     }
     else if (cmd_s.find("ls") != std::string::npos){
         return new lsCommand(cmd_line);

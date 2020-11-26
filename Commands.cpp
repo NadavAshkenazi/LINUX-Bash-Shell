@@ -140,12 +140,12 @@ void ExternalCommand::execute(){
     strcpy(clean_cmd_line,cmd_line);
     _removeBackgroundSign(clean_cmd_line);
 
-//    JobState state = BG;
+//    JobState state = BG; //todo: debug
 //    if (_wait)
 //        state = FG;
 //    int jobID = jobs->addJob(this, state);
-    //cout << "added job" << this->args[0] << state << endl; // todo : not print these jobs- maybe not really added?
-    //jobs->printFirstJobs();  // TODO: debug
+    //cout << "added job" << this->args[0] << state << endl;
+    //jobs->printFirstJobs();
 
     pid_t pid = fork();
 
@@ -343,12 +343,14 @@ void RedirectionCommand::execute() {
 // BuiltInCommand
 //**************************************
 BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
-    vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"}; // TODO: check if need to do redirection
+    vector<string> ignoreArgs{">", "<", "<<", ">>", "|","&"};
 
-    for (vector<string>::iterator it_args = args.begin(); it_args != args.end(); it_args++) {
+    for (int i = 0; i < args.size(); i++){
         for (vector<string>::iterator it_ignore = ignoreArgs.begin(); it_ignore != ignoreArgs.end(); ++it_ignore) {
-            if (*it_args == *it_ignore)
-                it_args= args.erase(it_args); // TODO: check
+            if (args[i] == *it_ignore) {
+                args.erase(args.begin() + i);
+                i--;
+            }
         }
     }
 }
@@ -609,15 +611,18 @@ void TimeoutCommand::execute() {
         smash.executeCommand(command.c_str());
         return;
     }
-    //todo: fork - parent - execute, child - send signal
 }
 
 //**************************************
 // JobsList
 //**************************************
+<<<<<<< HEAD
+=======
+
+>>>>>>> bed52df... removed redundent todos
 JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID) {
     time_t* temp_time= NULL;
-    timeStamp = time(temp_time); //todo: check time format
+    timeStamp = time(temp_time);
 }
 JobsList::JobsList(): maxJobID(-1){
     vector <JobEntry> jobList;
@@ -705,7 +710,7 @@ JobsList::JobEntry* JobsList::getFgJob() {
 void JobsList::printFirstJobs(){
    cout << jobList.begin()->command->getCommandName() <<  jobList.begin()->state << endl;
 }
-void JobsList::removeJobById(int jobId){ // todo remove also from timeout vector
+void JobsList::removeJobById(int jobId){
     for(int i=0 ; i < jobList.size() ; i ++ ){
         if (jobList[i].jobID == jobId){
             delete jobList[i].command;

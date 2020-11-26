@@ -22,7 +22,7 @@ class Command {
  protected:
   vector<string> args;
   pid_t _pid; // not zero only for built in commands
-  bool isFinished; // TODO: should be updated by the dad- the shell after wait() finish. how to update bg process?
+  bool isFinished;
 public:
     char* cmd_line;
     Command(const char* cmd_line);
@@ -32,8 +32,8 @@ public:
   virtual pid_t getPID();
 //  virtual void prepare();
 //  virtual void cleanup();
-  string getCommandName(); // Todo: implement
-  bool getisFinished(); // Todo: implement
+  string getCommandName();
+  bool getisFinished();
   void cleanArgs();
 };
 
@@ -110,7 +110,7 @@ class ChangePromptCommand : public BuiltInCommand {
 public:
     string* currentPromp;
     ChangePromptCommand(const char* cmd_line, string* currentPrompt);
-    virtual ~ChangePromptCommand() {} //todo: =default?
+    virtual ~ChangePromptCommand() {}
     void execute() override;
 };
 
@@ -140,7 +140,7 @@ class JobsList {
   public:
       time_t timeStamp;
       int jobID;
-      JobState state; // TODO: change everthing according to state
+      JobState state;
       Command* command;
       JobEntry(Command* cmd, int jobID, JobState state);
       ~JobEntry(){};
@@ -157,7 +157,7 @@ class JobsList {
  public:
     int maxJobID;
     vector <JobEntry> jobList;
-    vector <timeoutJob> timeoutJobs; //TODO: can built in get timeout
+    vector <timeoutJob> timeoutJobs;
     JobsList();
     ~JobsList();
     int addJob(Command* cmd, JobState state);
@@ -166,7 +166,7 @@ class JobsList {
     void removeFinishedJobs();
     JobEntry* getJobById(int jobId);
     void removeJobById(int jobId);
-    JobEntry* getLastJob(int* lastJobId); // why do we need?
+    JobEntry* getLastJob(int* lastJobId);
     int getLastStoppedJobId();
     void changeJobStatus (int jobId, JobState state);
     JobEntry* getFgJob();
@@ -183,7 +183,7 @@ class JobsCommand : public BuiltInCommand {
 public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
   virtual ~JobsCommand() {}
-  void execute() override; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class KillCommand : public BuiltInCommand {
@@ -199,7 +199,7 @@ public:
   void execute() override;
 };
 
-class ForegroundCommand : public BuiltInCommand { // TODO: reset timer in jobs list when
+class ForegroundCommand : public BuiltInCommand {
 private:
     int JobIdToResume;
     JobsList* jobs;

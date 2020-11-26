@@ -15,8 +15,6 @@
 #include <stdlib.h>
 #include <typeinfo>
 
-#define PIPE1 1
-#define PIPE2 2
 
 using namespace std;
 

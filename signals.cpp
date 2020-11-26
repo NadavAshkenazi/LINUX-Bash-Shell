@@ -120,45 +120,22 @@ void alarmHandler(int sig_num) {
   // TODO: Add your implementation
     cout << "smash: got an alarm" << endl;
     SmallShell& smash = SmallShell::getInstance();
-    if (smash.jobsList->hasPipeInFg){
-        pid_t pipePid1 = smash.jobsList->pipePid1;
-        pid_t pipePid2 = smash.jobsList->pipePid2;
-        JobsList::JobEntry* pipeJob1 = smash.jobsList->getTimeoutJob(pipePid1);
-        JobsList::JobEntry* pipeJob2 = smash.jobsList->getTimeoutJob(pipePid2);
-        if (pipeJob1 != NULL){
-            if (kill(pipePid1, SIGKILL) != 0){
+    time_t* tempTime= NULL;
+    time_t now = time(tempTime);
+    for (int i = 0; i < smash.jobsList->timeoutJobs.size(); i++){
+        JobsList::JobEntry* job = smash.jobsList->getJobById(smash.jobsList->timeoutJobs[i].id);
+        if (now - job->timeStamp >= smash.jobsList->timeoutJobs[i].sleepTime){
+            if (kill(job->command->getPID(), SIGKILL) != 0){
                 perror("smash error: kill failed"); // kill is the syscall that failed
                 return;
             }
             else{
-                string cmd_line1 = pipeJob1->command->cmd_line;
-                smash.jobsList->removeFinishedJobs();
+                string cmd_line1 = job->command->cmd_line;
                 cout << "smash: process " << cmd_line1 << " timed out!" << endl;
             }
         }
-        if (pipeJob2 != NULL){
-            if (kill(pipePid2, SIGKILL) != 0){
-                perror("smash error: kill failed"); // kill is the syscall that failed
-                return;
-            }
-            else{
-                string cmd_line2 = pipeJob2->command->cmd_line;
-                smash.jobsList->removeFinishedJobs();
-                cout << "smash: process " << cmd_line2 << " timed out!" << endl;
-            }
-        }
-        return;
     }
-    JobsList::JobEntry* timeoutJob = smash.jobsList->getTimeoutJob();
-    if (timeoutJob != NULL){
-        if (kill(timeoutJob->command->getPID(), SIGKILL) != 0){
-            perror("smash error: kill failed"); // kill is the syscall that failed
-            return;
-        }
-    }
-    string cmd_line = timeoutJob->command->cmd_line;
-    smash.jobsList->removeJobById(timeoutJob->jobID);
-    cout << "smash: process " << cmd_line << " timed out!" << endl;
+    smash.jobsList->removeFinishedJobs();
     return;
 }
 

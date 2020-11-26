@@ -11,6 +11,8 @@
 
 using namespace std;
 
+#define PIPE1 1
+#define PIPE2 2
 #define NOVALUE -5
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)

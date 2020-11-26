@@ -57,6 +57,9 @@ class PipeCommand : public Command {
 private:
     pid_t _pid1;
     pid_t _pid2;
+    string _cmd1;
+    string _cmd2;
+    bool regularPipe; // true if "|", false is "|&"
     JobsList* jobs;
 
 public:
@@ -67,17 +70,19 @@ public:
 };
 
 class RedirectionCommand : public Command {
- // TODO: Add your data members
+private:
+    bool override; // true only if ">"
+    string cmd;
+    string fileName;
  public:
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand() {}
-  void execute() override; //Todo: remove {} when implementing
+  void execute() override;
   //void prepare() override;
   //void cleanup() override;
 };
 
 class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members public:
  private:
     char** plastPwd;
  public:
@@ -109,11 +114,13 @@ public:
 };
 
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members public
-  JobsList* jobs;
-  QuitCommand(const char* cmd_line, JobsList* jobs);
+private:
+    bool killAllJobs;
+    JobsList* jobs;
+public:
+  QuitCommand(const char* cmd_line);
   virtual ~QuitCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class TimeoutCommand : public Command {
@@ -145,21 +152,21 @@ class JobsList {
         timeoutJob(int id, int sleepTime): id(id),sleepTime(sleepTime) {};
       ~timeoutJob(){};
     };
-private:
-    vector <JobEntry> jobList;
+
  public:
     int maxJobID;
+    vector <JobEntry> jobList;
     vector <timeoutJob> timeoutJobs; //TODO: can built in get timeout
     JobsList();
     ~JobsList();
     int addJob(Command* cmd, JobState state);
     void printJobsList();
-    void killAllJobs(); // why do we need?
+    void killAllJobs();
     void removeFinishedJobs();
     JobEntry* getJobById(int jobId);
     void removeJobById(int jobId);
     JobEntry* getLastJob(int* lastJobId); // why do we need?
-    JobEntry*getLastStoppedJob(int *jobId); // why do we need?
+    int getLastStoppedJobId();
     void changeJobStatus (int jobId, JobState state);
     JobEntry* getFgJob();
     void printFirstJobs();
@@ -178,30 +185,35 @@ public:
 };
 
 class KillCommand : public BuiltInCommand {
- // TODO: Add your data members
- JobsList* jobs;
+private:
+    JobsList* jobs;
+    int signum;
+    int jobIdToKill;
+    pid_t pidToKill;
+    bool print;
 public:
-  KillCommand(const char* cmd_line, JobsList* jobs);
+  KillCommand(const char* cmd_line, bool print=true);
   virtual ~KillCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class ForegroundCommand : public BuiltInCommand { // TODO: reset timer in jobs list when
- // TODO: Add your data members
- JobsList* jobs;
+private:
+    int JobIdToResume;
+    JobsList* jobs;
 public:
-  ForegroundCommand(const char* cmd_line, JobsList* jobs);
+  ForegroundCommand(const char* cmd_line);
   virtual ~ForegroundCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class BackgroundCommand : public BuiltInCommand {
- // TODO: Add your data members
+ int JobIdToResume;
  JobsList* jobs;
 public:
-  BackgroundCommand(const char* cmd_line, JobsList* jobs);
+  BackgroundCommand(const char* cmd_line);
   virtual ~BackgroundCommand() {}
-  void execute() override {}; //Todo: remove {} when implementing
+  void execute() override;
 };
 
 class lsCommand : public BuiltInCommand{

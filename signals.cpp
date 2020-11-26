@@ -12,9 +12,19 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
     if (smash.jobsList->hasPipeInFg){
         pid_t pipePid1 = smash.jobsList->pipePid1;
         pid_t pipePid2 = smash.jobsList->pipePid2;
-        if (kill(pipePid1, SIGSTOP) != 0){
-            perror("smash error: kill failed"); // kill is the syscall that failed
-            return;
+        if (pipePid1 != 0){
+            cout << "pipe1" << pipePid1; //todo: debug
+            if (kill(pipePid1, SIGSTOP) != 0){
+                perror("smash error: kill failed"); // kill is the syscall that failed
+                return;
+            }
+            else{
+                JobsList::JobEntry* pipeJob1 = smash.jobsList->getJobByPid(pipePid1);
+                pipeJob1->state = STOPPED;
+                smash.jobsList->changeJobId(pipeJob1, smash.jobsList->maxJobID);
+                smash.jobsList->maxJobID++;
+                cout << "smash: process " << pipePid1<< " was stopped" << endl;
+            }
         }
         else{
             JobsList::JobEntry* pipeJob1 = smash.jobsList->getJobByPid(pipePid1);
@@ -113,25 +123,29 @@ void alarmHandler(int sig_num) {
     if (smash.jobsList->hasPipeInFg){
         pid_t pipePid1 = smash.jobsList->pipePid1;
         pid_t pipePid2 = smash.jobsList->pipePid2;
-        if (kill(pipePid1, SIGKILL) != 0){
-            perror("smash error: kill failed"); // kill is the syscall that failed
-            return;
+        JobsList::JobEntry* pipeJob1 = smash.jobsList->getTimeoutJob(pipePid1);
+        JobsList::JobEntry* pipeJob2 = smash.jobsList->getTimeoutJob(pipePid2);
+        if (pipeJob1 != NULL){
+            if (kill(pipePid1, SIGKILL) != 0){
+                perror("smash error: kill failed"); // kill is the syscall that failed
+                return;
+            }
+            else{
+                smash.jobsList->removeJobById(pipeJob1->jobID);
+                string cmd_line1 = pipeJob1->command->cmd_line;
+                cout << "smash: process " << cmd_line1 << " timed out!" << endl;
+            }
         }
-        else{
-            JobsList::JobEntry* pipeJob1 = smash.jobsList->getJobByPid(pipePid1);
-            smash.jobsList->removeJobById(pipeJob1->jobID);
-            string cmd_line1 = pipeJob1->command->cmd_line;
-            cout << "smash: process " << cmd_line1 << " timed out!" << endl;
-        }
-        if (kill(pipePid2, SIGKILL) != 0){
-            perror("smash error: kill failed"); // kill is the syscall that failed
-            return;
-        }
-        else{
-            JobsList::JobEntry* pipeJob2 = smash.jobsList->getJobByPid(pipePid2);
-            smash.jobsList->removeJobById(pipeJob2->jobID);
-            string cmd_line2 = pipeJob2->command->cmd_line;
-            cout << "smash: process " << cmd_line2 << " timed out!" << endl;
+        if (pipeJob2 != NULL){
+            if (kill(pipePid2, SIGKILL) != 0){
+                perror("smash error: kill failed"); // kill is the syscall that failed
+                return;
+            }
+            else{
+                smash.jobsList->removeJobById(pipeJob2->jobID);
+                string cmd_line2 = pipeJob2->command->cmd_line;
+                cout << "smash: process " << cmd_line2 << " timed out!" << endl;
+            }
         }
         return;
     }

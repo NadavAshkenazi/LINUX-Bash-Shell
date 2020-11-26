@@ -162,8 +162,8 @@ class JobsList {
     public:
         int id;
         int sleepTime;
-        pid_t pid;
-        timeoutJob(int id, int sleepTime, pid_t pid = -1) : id(id),sleepTime(sleepTime), pid(pid) {};
+        int pipe;
+        timeoutJob(int id, int sleepTime, int pipe = 0) : id(id),sleepTime(sleepTime), pipe(pipe) {};
       ~timeoutJob(){};
     };
 
@@ -187,8 +187,8 @@ class JobsList {
     void changeJobStatus (int jobId, JobState state);
     JobEntry* getFgJob();
     void printFirstJobs();
-    void addTimeoutJob(int jobId, int sleepTime, pid_t pid = -1);
-    JobEntry* getTimeoutJob(pid_t pid = -1);
+    void addTimeoutJob(int jobId, int sleepTime, int pipe = 0);
+    JobEntry* getTimeoutJob(int pipe = 0);
     void removeTimeoutJob(int jobId);
     void resetJobTimerById(int jobId);
     void changeJobId(JobsList::JobEntry* job, int newId);

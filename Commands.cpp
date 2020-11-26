@@ -15,8 +15,8 @@
 #include <stdlib.h>
 #include <typeinfo>
 
-#define PIPE1_ID -2
-#define PIPE2_ID -3
+#define PIPE1 1
+#define PIPE2 2
 
 using namespace std;
 
@@ -632,6 +632,41 @@ void ChangePromptCommand::execute() {
 //**************************************
 // Timeout Command
 //**************************************
+
+bool _isBuiltIn(string cmd_s){
+    if (cmd_s.find("bg") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("fg") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("cd") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("pwd") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("showpid") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("jobs") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("quit") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("chprompt") != std::string::npos) {
+        return true;
+    }
+    else if (cmd_s.find("kill") != std::string::npos){
+        return true;
+    }
+    else if (cmd_s.find("ls") != std::string::npos){
+        return true;
+    }
+    return false;
+}
+
 TimeoutCommand::TimeoutCommand(const char* cmd_line, JobsList* jobs):Command(cmd_line), jobs(jobs){}
 void TimeoutCommand::execute() {
     string command = "";
@@ -661,18 +696,35 @@ void TimeoutCommand::execute() {
         exit(0);
     }
     else{ // shell
-//        if (string(cmd_line).find("|") != std::string::npos){
-//            smash.jobsList->addTimeoutJob(-1, sleep);
-//            smash.jobsList->addTimeoutJob(-1, sleep);
-//        }
-//        else{
-            if (_isBackgroundComamnd(cmd_line)){
+        if (string(cmd_line).find("|") != std::string::npos){
+            string cmd1;
+            string cmd2;
+            bool temp = false;
+            trimForPipe(command.c_str(), &cmd1, &cmd2, &temp);
+            if (!_isBuiltIn(cmd1)){
+                if (_isBackgroundComamnd(cmd1.c_str())){
+                    smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep, PIPE1);
+                    smash.jobsList->maxJobID++;
+                }
+                smash.jobsList->addTimeoutJob(-1, sleep);
+            }
+            if (!_isBuiltIn(cmd2)){
+                if (_isBackgroundComamnd(cmd2.c_str())){
+                    smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep, PIPE2);
+                    smash.jobsList->maxJobID++;
+                }
+                smash.jobsList->addTimeoutJob(-1, sleep);
+            }
+        }
+        else{
+            if (_isBackgroundComamnd(command.c_str())){
                 smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep);
+                smash.jobsList->maxJobID++;
             }
             else{
                 smash.jobsList->addTimeoutJob(-1, sleep);
             }
-//        }
+        }
         smash.executeCommand(command.c_str());
         return;
     }
@@ -751,7 +803,9 @@ void JobsList::removeFinishedJobs(){
     }
 }
 JobsList::JobEntry* JobsList::getJobById(int jobId){
+    cout << "jobID: " <<jobId << endl; //TODO : DEBUG
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+        cout << "current " << (*it).jobID << endl;
         if ((*it).jobID == jobId){
             return &(*it);
         }
@@ -807,21 +861,38 @@ void JobsList:: changeJobId(JobsList::JobEntry* job, int newId){
     job->formerJobId = job->jobID;
     job->jobID = newId;
 }
-void JobsList::addTimeoutJob(int jobId, int sleepTime, pid_t pid) {
-    timeoutJob newJob = timeoutJob(jobId, sleepTime, pid);
+void JobsList::addTimeoutJob(int jobId, int sleepTime, int pipe) {
+    timeoutJob newJob = timeoutJob(jobId, sleepTime, pipe);
     timeoutJobs.push_back(newJob);
 }
-JobsList::JobEntry* JobsList::getTimeoutJob(pid_t pid){
+JobsList::JobEntry* JobsList::getTimeoutJob(int pipe){
     for (vector<timeoutJob>::iterator it = timeoutJobs.begin() ; it != timeoutJobs.end(); ++it){
+        cout << "pipe " << pipe << endl;
+        cout << "id: " << it->id << endl;
         JobEntry* job = getJobById((it->id));
         time_t* tempTime= NULL;
         time_t now = time(tempTime);
+        cout << "finish: " << (now - job->timeStamp >= it->sleepTime) <<endl;
         if (now - job->timeStamp >= it->sleepTime){
-            if (pid == -1 || job->command->getPID() == pid){
+            if (pipe == 1){
+                if (job->command->getPID() == pipePid1){
+                    cout << "pipe 1" << endl;
+                    return job;
+                }
+            }
+            if (pipe == 2){
+                if (job->command->getPID() == pipePid2){
+                    cout << "pipe 2" << endl;
+                    return job;
+                }
+            }
+            else{
+                cout << "not pipe timeout" << endl;
                 return job;
             }
         }
     }
+    cout << "NULL returned" << endl;
     return NULL;
 }
 void JobsList::removeTimeoutJob(int jobId){

@@ -14,6 +14,7 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
         return;
     }
     fgJob->state = STOPPED;
+    smash.jobsList->changeJobId(fgJob);
     cout << "smash: process " << fgJob->command->getPID() << " was stopped" << endl;
     return;
 }

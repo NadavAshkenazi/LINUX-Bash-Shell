@@ -737,6 +737,10 @@ void JobsList::removeJobById(int jobId){
     }
     return;
 }
+
+void JobsList:: changeJobId(JobsList::JobEntry* job){
+    job->jobID = ++maxJobID;
+}
 void JobsList::addTimeoutJob(int jobId, int sleepTime) {
     timeoutJob newJob = timeoutJob(jobId, sleepTime);
     timeoutJobs.push_back(newJob);

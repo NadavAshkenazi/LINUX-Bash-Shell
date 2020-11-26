@@ -177,6 +177,7 @@ class JobsList {
     JobEntry* getTimeoutJob();
     void removeTimeoutJob(int jobId);
     void resetJobTimerById(int jobId);
+    void changeJobId(JobsList::JobEntry* job);
     };
 
 class JobsCommand : public BuiltInCommand {

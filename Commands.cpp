@@ -45,7 +45,6 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define DEBUG_PRINT cerr << "DEBUG: "
 #define SIGSTOP 19
 #define SIGCONT 18
-#define NOVALUE -5
 #define EXEC(path, arg) \
   execvp((path), (arg));
 
@@ -460,26 +459,41 @@ void JobsCommand::execute() {
 //**************************************
 KillCommand::KillCommand(const char* cmd_line, bool print) :BuiltInCommand(cmd_line), print(print) {
     jobs = SmallShell::getInstance().jobsList;
+}
+void KillCommand::execute() {
     if (args.size()-1 < ARGS_NUM_KILL){
         cerr <<"smash error: kill: invalid arguments" << endl;
         return;
     }
-    jobIdToKill = stoi(args[ARGS_NUM_KILL]);
+    if (args[1].find("-") == -1){
+        cerr <<"smash error: kill: invalid arguments" << endl;
+        return;
+    }
+    try{
+        jobIdToKill = stoi(args[ARGS_NUM_KILL]);
+    } catch (invalid_argument) {
+        cerr <<"smash error: kill: invalid arguments" << endl;
+        return;
+    }
+    try{
+        signum = stoi(args[1].substr(args[1].find("-")+1));
+    } catch (invalid_argument) {
+        cerr <<"smash error: kill: invalid arguments" << endl;
+        return;
+    }
+    if ((signum < 1) | (signum > 31)){
+        cerr <<"smash error: kill: invalid arguments" << endl;
+        return;
+    }
     JobsList::JobEntry* jobToKill = jobs->getJobById(jobIdToKill);
     if (jobToKill == NULL){
         cerr << "smash error: kill: job-id " + args[ARGS_NUM_KILL] + " does not exist" << endl;
         return;
     }
-    signum = stoi(args[1].substr(args[1].find("-")+1));
-    if ((signum < 1) | (signum > 31)){
-        cerr <<"smash error: kill: invalid arguments" << endl;
-        return;
-    }
     pidToKill = jobToKill->command->getPID();
 //    cout << "signum is " << signum << endl; // todo debug
 //    cout << "pidToKill: " << pidToKill << endl; // todo debug
-}
-void KillCommand::execute() {
+
     if (print)
         cout << "signal number " << signum << " was sent to pid " << pidToKill << endl;
     if(kill(pidToKill, signum) == -1){
@@ -526,11 +540,16 @@ void ForegroundCommand::execute(){
 
     string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
     KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
-    cout << jobs->getJobById(JobIdToResume)->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
+    JobsList::JobEntry* jobToResume= jobs->getJobById(JobIdToResume);
+    cout << jobToResume->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
     jobs->resetJobTimerById(JobIdToResume);
-    //jobs->changeJobId(jobs->getJobById(JobIdToResume), -1);
+    jobs->changeJobId(jobToResume, -1);
+    jobs->changeJobStatus(jobToResume->jobID, FG);
+//    cout << "the job id is now: " << jobToResume->jobID << endl; // todo debug
+//    cout << "the former job id is now: " << jobToResume->formerJobId << endl; // todo debug
+//    cout << "state is now: " << jobToResume->state << endl; // todo debug
     killCommand->execute();
-    waitpid(jobs->getJobById(JobIdToResume)->command->getPID(),NULL,0);
+    waitpid(jobToResume->command->getPID(),NULL,WUNTRACED);
     return;
 }
 
@@ -565,9 +584,11 @@ void BackgroundCommand::execute() {
 
     string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
     KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
-    cout << jobs->getJobById(JobIdToResume)->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
+    JobsList::JobEntry* jobToResume= jobs->getJobById(JobIdToResume);
+    cout << jobToResume->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
     jobs->resetJobTimerById(JobIdToResume);
-    // jobs->changeJobId(JobIdToResume, job->formerJobId)
+    jobs->changeJobStatus(jobToResume->jobID, BG);
+    //jobs->changeJobId(jobToResume, jobToResume->formerJobId); // todo: maybe remove?
     killCommand->execute();
     return;
 }
@@ -737,7 +758,6 @@ JobsList::JobEntry* JobsList::getJobById(int jobId){
     }
     return NULL;
 }
-
 JobsList::JobEntry* JobsList::getJobByPid(pid_t pid){
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
         if ((*it).command->getPID() == pid){
@@ -746,11 +766,10 @@ JobsList::JobEntry* JobsList::getJobByPid(pid_t pid){
     }
     return NULL;
 }
-
 void JobsList::changeJobStatus (int jobId, JobState state){
-    jobList[jobId].state = state;
-//    JobEntry* jobToChange = getJobById(jobId);
-//    jobToChange->state = state;
+   JobEntry* jobToChange = getJobById(jobId);
+   if (jobToChange != NULL)
+       jobToChange->state = state;
 }
 JobsList::JobEntry* JobsList::getFgJob() {
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
@@ -784,9 +803,8 @@ void JobsList::removeJobByPid(pid_t pid){
     }
     return;
 }
-
 void JobsList:: changeJobId(JobsList::JobEntry* job, int newId){
-    // job->formerjob = job->jobID
+    job->formerJobId = job->jobID;
     job->jobID = newId;
 }
 void JobsList::addTimeoutJob(int jobId, int sleepTime, pid_t pid) {

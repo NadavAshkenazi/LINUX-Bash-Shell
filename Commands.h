@@ -11,6 +11,7 @@
 
 using namespace std;
 
+#define NOVALUE -5
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define HISTORY_MAX_RECORDS (50)

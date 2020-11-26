@@ -6,6 +6,8 @@
 #include <time.h>
 #include <stdio.h>
 #include <map>
+#include <dirent.h>
+
 
 using namespace std;
 
@@ -222,7 +224,7 @@ class lsCommand : public BuiltInCommand{
 public:
     lsCommand(const char* cmd_line);
     virtual ~lsCommand() {};
-    void execute() override{};
+    void execute() override;
 };
 
 

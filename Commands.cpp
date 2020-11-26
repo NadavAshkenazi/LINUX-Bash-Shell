@@ -10,6 +10,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#define _DEFAULT_SOURCE
 
 using namespace std;
 
@@ -558,7 +562,22 @@ void BackgroundCommand::execute() {
 // lsCommand
 //**************************************
 lsCommand::lsCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
-//void lsCommand::execute{}
+void lsCommand::execute(){
+    struct dirent **namelist;
+    int n;
+
+    n = scandir(".", &namelist, NULL, alphasort);
+    if (n == -1) {
+        perror("smash error: scandir failed");
+        return;
+    }
+
+    for (int i = 0; i < n; i++) {
+        cout << namelist[i]->d_name << endl;
+        free(namelist[n]);
+    }
+    free(namelist);
+}
 
 //**************************************
 // ChangePromptCommand
@@ -616,10 +635,7 @@ void TimeoutCommand::execute() {
 //**************************************
 // JobsList
 //**************************************
-<<<<<<< HEAD
-=======
 
->>>>>>> bed52df... removed redundent todos
 JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID) {
     time_t* temp_time= NULL;
     timeStamp = time(temp_time);
@@ -828,7 +844,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
         return new ChangePromptCommand(cmd_line, &this->currentPrompt);
     }
     else if (cmd_s.find("ls") != std::string::npos){
-//        return new lsCommand(cmd_line);
+        return new lsCommand(cmd_line);
     }
     else {
         return new ExternalCommand(cmd_line, jobsList);

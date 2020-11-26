@@ -45,6 +45,7 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define DEBUG_PRINT cerr << "DEBUG: "
 #define SIGSTOP 19
 #define SIGCONT 18
+#define NOVALUE -5
 #define EXEC(path, arg) \
   execvp((path), (arg));
 
@@ -378,11 +379,11 @@ void BuiltInCommand::executePipe(){
 ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) :BuiltInCommand(cmd_line), plastPwd(plastPwd){}
 void ChangeDirCommand::execute() {
     if (args.size() - 1 > ARGS_NUM_CD) {
-        perror("smash error: cd: too many arguments");
+        cerr << "smash error: cd: too many arguments" << endl;
         return;
     }
     if (args.size() - 1 < ARGS_NUM_CD) {
-        perror("smash error: cd: too few arguments");
+        cerr <<"smash error: cd: too few arguments" << endl;
         return;
     }
 
@@ -399,7 +400,7 @@ void ChangeDirCommand::execute() {
         }
     } else {
         if (*plastPwd == NULL) {
-            perror("smash error: cd: OLDPWD not set");
+            cerr <<"smash error: cd: OLDPWD not set" << endl;
             return;
         } else {
             args[ARGS_NUM_CD] = *plastPwd;
@@ -460,19 +461,18 @@ void JobsCommand::execute() {
 KillCommand::KillCommand(const char* cmd_line, bool print) :BuiltInCommand(cmd_line), print(print) {
     jobs = SmallShell::getInstance().jobsList;
     if (args.size()-1 < ARGS_NUM_KILL){
-        perror("smash error: kill: invalid arguments");
+        cerr <<"smash error: kill: invalid arguments" << endl;
         return;
     }
     jobIdToKill = stoi(args[ARGS_NUM_KILL]);
     JobsList::JobEntry* jobToKill = jobs->getJobById(jobIdToKill);
     if (jobToKill == NULL){
-        const string error = "smash error: kill: job-id " + args[ARGS_NUM_KILL] + " does not exist";
-        perror(error.c_str());
+        cerr << "smash error: kill: job-id " + args[ARGS_NUM_KILL] + " does not exist" << endl;
         return;
     }
     signum = stoi(args[1].substr(args[1].find("-")+1));
     if ((signum < 1) | (signum > 31)){
-        perror("smash error: kill: invalid arguments");
+        cerr <<"smash error: kill: invalid arguments" << endl;
         return;
     }
     pidToKill = jobToKill->command->getPID();
@@ -503,20 +503,23 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line) :BuiltInCommand(cmd_l
 }
 void ForegroundCommand::execute(){
     if (args.size()-1 > ARGS_NUM_BG){
-        perror("smash error: fg: invalid arguments");
+        cerr <<"smash error: fg: invalid arguments" << endl;
         return;
     }
     if (args.size() == 1){ // no specific jobId to resume
         if (jobs->jobList.size() == 0){
-            perror("smash error: fg: jobs list is empty");
+            cerr <<"smash error: fg: jobs list is empty" << endl;
             return;
         }
-        JobIdToResume= jobs->jobList.size()-1;
+        JobIdToResume= jobs->getLastJobId();
+        if (JobIdToResume == -1){
+            cerr <<"smash error: fg: jobs list is empty" << endl;
+            return;
+        }
     } else {
         JobIdToResume= stoi(_trim(args[ARGS_NUM_BG]));
         if (jobs->getJobById(JobIdToResume) == NULL){
-            const string error= "smash error: fg: job-id "+to_string(JobIdToResume)+" does not exist";
-            perror(error.c_str());
+            cerr <<"smash error: fg: job-id "+to_string(JobIdToResume)+" does not exist" << endl;
             return;
         }
     }
@@ -525,6 +528,7 @@ void ForegroundCommand::execute(){
     KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
     cout << jobs->getJobById(JobIdToResume)->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
     jobs->resetJobTimerById(JobIdToResume);
+    //jobs->changeJobId(jobs->getJobById(JobIdToResume), -1);
     killCommand->execute();
     waitpid(jobs->getJobById(JobIdToResume)->command->getPID(),NULL,0);
     return;
@@ -538,25 +542,23 @@ BackgroundCommand::BackgroundCommand(const char* cmd_line) :BuiltInCommand(cmd_l
 }
 void BackgroundCommand::execute() {
     if (args.size()-1 > ARGS_NUM_BG){
-        perror("smash error: bg: invalid arguments");
+        cerr <<"smash error: bg: invalid arguments" << endl;
         return;
     }
     if (args.size() == 1){ // no specific jobId to resume
         JobIdToResume= jobs->getLastStoppedJobId();
         if (JobIdToResume == -1){
-            perror("smash error: bg: there is no stopped jobs to resume");
+            cerr <<"smash error: bg: there is no stopped jobs to resume" << endl;
             return;
         }
     } else {
         JobIdToResume= stoi(_trim(args[ARGS_NUM_BG]));
         if (jobs->getJobById(JobIdToResume) == NULL){
-            const string error= "smash error: bg: job-id "+to_string(JobIdToResume)+" does not exist";
-            perror(error.c_str());
+            cerr << "smash error: bg: job-id "+to_string(JobIdToResume)+" does not exist" << endl;
             return;
         }
         if (jobs->getJobById(JobIdToResume)->state != STOPPED){
-            const string error= "smash error: bg: job-id "+to_string(JobIdToResume)+" is already running in the background";
-            perror(error.c_str());
+            cerr << "smash error: bg: job-id "+to_string(JobIdToResume)+" is already running in the background" << endl;
             return;
         }
     }
@@ -565,6 +567,7 @@ void BackgroundCommand::execute() {
     KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
     cout << jobs->getJobById(JobIdToResume)->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
     jobs->resetJobTimerById(JobIdToResume);
+    // jobs->changeJobId(JobIdToResume, job->formerJobId)
     killCommand->execute();
     return;
 }
@@ -584,8 +587,8 @@ void lsCommand::execute(){
     }
 
     for (int i = 0; i < n; i++) {
-        cout << namelist[i]->d_name << endl;
-        free(namelist[n]);
+        cout << namelist[i]->d_name << endl; // TODO: change so it won't print "." and ".."
+        free(namelist[i]);
     }
     free(namelist);
 }
@@ -597,7 +600,8 @@ ChangePromptCommand::ChangePromptCommand(const char *cmd_line, string* currentPr
                                                                                         currentPromp(currentPrompt) {}
 void ChangePromptCommand::execute() {
     if (this->args.size() == 1){
-        *currentPromp = "smash>";
+        *currentPromp = "smash> "
+                        "";
     }
     else{
         *currentPromp = this->args[1] + "> ";
@@ -657,11 +661,11 @@ void TimeoutCommand::execute() {
 // JobsList
 //**************************************
 
-JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID) {
+JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID), formerJobId(NOVALUE) {
     time_t* temp_time= NULL;
     timeStamp = time(temp_time);
 }
-JobsList::JobsList(): maxJobID(-1){
+JobsList::JobsList(): maxJobID(0){
     vector <JobEntry> jobList;
     vector<timeoutJob> timeoutJobs;
 }
@@ -697,15 +701,15 @@ void JobsList::printJobsList(){
             continue;
 
         cout << "[" << (*it).jobID << "]" ;
-        cout << (*it).command->getCommandName() << ": " ;
+        cout << (*it).command->getCommandName() << " : " ;
         cout << (*it).command->getPID() << " ";
 
         time_t* current_time =  NULL;
         double timeElapsed = difftime (time(current_time), (*it).timeStamp);
-        cout << timeElapsed;
+        cout << timeElapsed << " secs";
 
         if ((*it).state == STOPPED){
-            cout << "(stopped)";
+            cout << " (stopped)";
         }
 
         cout << endl;
@@ -769,7 +773,6 @@ void JobsList::removeJobById(int jobId){
     }
     return;
 }
-
 void JobsList::removeJobByPid(pid_t pid){
     for(int i=0 ; i < jobList.size() ; i ++ ){
         if (jobList[i].command->getPID() == pid){
@@ -783,6 +786,7 @@ void JobsList::removeJobByPid(pid_t pid){
 }
 
 void JobsList:: changeJobId(JobsList::JobEntry* job, int newId){
+    // job->formerjob = job->jobID
     job->jobID = newId;
 }
 void JobsList::addTimeoutJob(int jobId, int sleepTime, pid_t pid) {
@@ -837,7 +841,13 @@ void JobsList::resetJobTimerById(int jobId){
     }
     return;
 }
-
+int JobsList::getLastJobId(){
+    for (int i = jobList.size() - 1; i > -1; i--) { // going over jobList from last to first
+        if (jobList[i].jobID > -1)
+            return jobList[i].jobID;
+    }
+    return -1;
+}
 
 //**************************************
 // SmallShell

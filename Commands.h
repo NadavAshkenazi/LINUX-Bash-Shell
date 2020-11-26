@@ -150,6 +150,7 @@ class JobsList {
   public:
       time_t timeStamp;
       int jobID;
+      int formerJobId;
       JobState state;
       Command* command;
       JobEntry(Command* cmd, int jobID, JobState state);
@@ -192,7 +193,9 @@ class JobsList {
     void changeJobId(JobsList::JobEntry* job, int newId);
     JobEntry* getJobByPid(pid_t pid);
     void removeJobByPid(pid_t pid);
+    int getLastJobId();
 };
+
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members

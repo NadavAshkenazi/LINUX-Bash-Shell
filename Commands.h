@@ -54,7 +54,7 @@ private:
     bool _wait;
     JobsList* jobs;
     int _jobID;
-    char* clean_cmd_line;
+    string clean_cmd_line;
     bool toSetGrpPid;
 public:
   ExternalCommand(const char* cmd_line, JobsList* jobs, bool toSetGrpPid=false);
@@ -166,8 +166,8 @@ class JobsList {
 
  public:
     bool hasPipeInFg;
-    pid_t pipeCmd1;
-    pid_t pipeCmd2;
+    pid_t pipePid1;
+    pid_t pipePid2;
     int maxJobID;
     vector <JobEntry> jobList;
     vector <timeoutJob> timeoutJobs;

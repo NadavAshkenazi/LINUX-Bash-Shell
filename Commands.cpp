@@ -104,7 +104,7 @@ void _removeBackgroundSign(char* cmd_line) {
 //**************************************
 // Command
 //**************************************
-Command::Command(const char *cmd_line): _pid(0),isFinished(false){//, cmd_line(cmd_line) {
+Command::Command(const char *cmd_line): _pid(-2),isFinished(false){//, cmd_line(cmd_line) {
 
 //    string tempCmd = string (cmd_line); // todo remove
 //    cmd_line = tempCmd.c_str(); // todo remove
@@ -128,9 +128,10 @@ bool Command::getisFinished() {return isFinished;}
 //**************************************
 // ExternalCommand
 //**************************************
-ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs, bool toSetGrpPid): Command(cmd_line), clean_cmd_line((char*)cmd_line), jobs(jobs), toSetGrpPid(toSetGrpPid) {
+ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs, bool toSetGrpPid): Command(cmd_line), jobs(jobs), toSetGrpPid(toSetGrpPid) {
     _wait = !_isBackgroundComamnd(cmd_line);
-    _removeBackgroundSign(clean_cmd_line);
+    clean_cmd_line= string(cmd_line);
+    _removeBackgroundSign((char*)clean_cmd_line.c_str());
 
     JobState state = BG;
     if (_wait)
@@ -149,7 +150,7 @@ void ExternalCommand::execute(){
 
         char* args_to_bash[] = {"/bin/bash",
                                 "-c",
-                                clean_cmd_line,
+                                (char*)clean_cmd_line.c_str(),
                                 NULL};
         //kill (getpid(), SIGTSTP); // debug
         execv(args_to_bash[0], args_to_bash);
@@ -169,7 +170,7 @@ void ExternalCommand::execute(){
 void ExternalCommand::executePipe(){
     char* args_to_bash[] = {"/bin/bash",
                             "-c",
-                            clean_cmd_line,
+                            (char*)clean_cmd_line.c_str(),
                             NULL};
     execv(args_to_bash[0], args_to_bash);
     jobs->removeJobById(_jobID);
@@ -202,6 +203,8 @@ PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line
     _cmd2 = _trim(s_cmd.substr(pipeLocation + sizeOfPipe));
     //cout << "cmd_1 = " << _cmd1 << endl; // todo debug
     //cout << "cmd_2 = " << _cmd2 << endl; // todo debug
+
+    jobs->hasPipeInFg = true;
 };
 void PipeCommand::execute() {
     int fd[2];
@@ -274,12 +277,17 @@ void PipeCommand::execute() {
             }
             _pid2 = pid2;
             secondCommand->setPid(_pid2);
+            jobs->pipePid1= _pid1;
+            jobs->pipePid2= _pid2;
             //cout << "pid1 = " << pid1 << endl;// todo debug
             //cout << "pid2 = " << pid2 << endl;// todo debug
             if (!_isBackgroundComamnd(cmd_line)){
                 waitpid( _pid1, NULL, 0);
                 waitpid( _pid2, NULL, 0);
             }
+            jobs->hasPipeInFg = false;
+            jobs->pipePid1= 0;
+            jobs->pipePid2= 0;
         }
     }
     return;
@@ -654,7 +662,7 @@ int JobsList::addJob(Command* cmd, JobState state){
         maxJobID++;
         jobList.push_back(newJob);
     } else if (state==FG){
-        if (getJobById(-1) != NULL){
+        if ((getJobById(-1) != NULL) && !hasPipeInFg){
             removeJobById(-1);
         }
         JobEntry newJob = JobEntry(cmd, -1, state);
@@ -690,7 +698,9 @@ void JobsList::printJobsList(){
 }
 void JobsList::removeFinishedJobs(){
     for(int i=0 ; i < jobList.size() ; i ++ ){
-        //cout << "check if finished: " << jobList[i].command->getPID(); // todo debug
+        //cout << "check if finishedsize: " << jobList[i].command->getPID(); // todo debug
+        if (jobList[i].command->getPID() == -2) // init value
+            continue;
         if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) != 0){//== jobList[i].command->getPID()){
             //cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl; // todo debug
             delete jobList[i].command;
@@ -729,7 +739,6 @@ void JobsList::removeJobById(int jobId){
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
             removeTimeoutJob(jobId);
-            return;
         }
     }
     return;
@@ -760,7 +769,6 @@ void JobsList::removeTimeoutJob(int jobId){
             return;
         }
     }
-    cout << "size: " << timeoutJobs.size() << endl;
     return;
 }
 void JobsList::killAllJobs(){

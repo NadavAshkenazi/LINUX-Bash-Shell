@@ -37,12 +37,16 @@ public:
   string getCommandName();
   bool getisFinished();
   void cleanArgs();
+  virtual void executePipe(){};
+  virtual void setPid(pid_t pid){};
 };
 
 class BuiltInCommand : public Command {
  public:
   BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() {}
+  void executePipe();
+  void setPid(pid_t pid){};
 };
 
 class ExternalCommand : public Command {
@@ -51,10 +55,13 @@ private:
     JobsList* jobs;
     int _jobID;
     char* clean_cmd_line;
+    bool toSetGrpPid;
 public:
-  ExternalCommand(const char* cmd_line, JobsList* jobs);
+  ExternalCommand(const char* cmd_line, JobsList* jobs, bool toSetGrpPid=false);
   virtual ~ExternalCommand() {}
   void execute() override;
+  void executePipe();
+  void setPid(pid_t pid);
 };
 
 class PipeCommand : public Command {
@@ -158,6 +165,9 @@ class JobsList {
     };
 
  public:
+    bool hasPipeInFg;
+    pid_t pipeCmd1;
+    pid_t pipeCmd2;
     int maxJobID;
     vector <JobEntry> jobList;
     vector <timeoutJob> timeoutJobs;

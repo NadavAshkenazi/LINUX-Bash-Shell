@@ -13,6 +13,8 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <typeinfo>
+
 #define _DEFAULT_SOURCE
 
 using namespace std;
@@ -126,8 +128,8 @@ bool Command::getisFinished() {return isFinished;}
 //**************************************
 // ExternalCommand
 //**************************************
-ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), clean_cmd_line((char*)cmd_line), jobs(jobs) {
-    _wait = !_isBackgroundComamnd;
+ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs, bool toSetGrpPid): Command(cmd_line), clean_cmd_line((char*)cmd_line), jobs(jobs), toSetGrpPid(toSetGrpPid) {
+    _wait = !_isBackgroundComamnd(cmd_line);
     _removeBackgroundSign(clean_cmd_line);
 
     JobState state = BG;
@@ -144,8 +146,6 @@ void ExternalCommand::execute(){
     }
     if (pid == 0){ // child process
         setpgrp();
-
-        //kill (getpid(), SIGTSTP); // debug
 
         char* args_to_bash[] = {"/bin/bash",
                                 "-c",
@@ -166,7 +166,20 @@ void ExternalCommand::execute(){
         }
     }
 }
-
+void ExternalCommand::executePipe(){
+    char* args_to_bash[] = {"/bin/bash",
+                            "-c",
+                            clean_cmd_line,
+                            NULL};
+    execv(args_to_bash[0], args_to_bash);
+    jobs->removeJobById(_jobID);
+    jobs->maxJobID -- ;
+    perror("smash error: execv failed");
+    return;
+    }
+void ExternalCommand::setPid(pid_t pid){
+    this->_pid = pid;
+}
 //**************************************
 // PipeCommand
 //**************************************
@@ -190,7 +203,7 @@ PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line
     //cout << "cmd_1 = " << _cmd1 << endl; // todo debug
     //cout << "cmd_2 = " << _cmd2 << endl; // todo debug
 };
-void PipeCommand::execute() { // todo need to update real proccess pid
+void PipeCommand::execute() {
     int fd[2];
     if (pipe(fd) == -1) {
         perror("smash error: pipe failed");
@@ -222,10 +235,11 @@ void PipeCommand::execute() { // todo need to update real proccess pid
             return;
         }
 
-        firstCommand->execute();
+        firstCommand->executePipe();
         exit(0);
     } else { // shell code
         _pid1 = pid1;
+        firstCommand->setPid(_pid1);
 
         pid_t pid2 = fork();
         if (pid2 < 0) {
@@ -247,7 +261,7 @@ void PipeCommand::execute() { // todo need to update real proccess pid
                 perror("smash error: close failed");
                 return;
             }
-            secondCommand->execute();
+            secondCommand->executePipe();
             exit(0);
         } else { // shell code
             if (close(fd[0]) == -1) {
@@ -259,15 +273,13 @@ void PipeCommand::execute() { // todo need to update real proccess pid
                 return;
             }
             _pid2 = pid2;
+            secondCommand->setPid(_pid2);
             //cout << "pid1 = " << pid1 << endl;// todo debug
             //cout << "pid2 = " << pid2 << endl;// todo debug
-            waitpid( pid1, NULL, 0);
-            waitpid( pid2, NULL, 0);
-//            waitpid( pid1, NULL, WUNTRACED);
-//            waitpid( pid2, NULL, WUNTRACED);
-            //cout << "pid2 finished: " << waitpid( pid2, NULL, WUNTRACED) << endl; // todo debug
-            //cout << "pid2 finished2: " << waitpid( pid2, NULL, WUNTRACED) << endl; // todo debug
-            //cout << "pid2 in remove : " << waitpid( pid2, NULL, WNOHANG ) <<endl; // todo debug
+            if (!_isBackgroundComamnd(cmd_line)){
+                waitpid( _pid1, NULL, 0);
+                waitpid( _pid2, NULL, 0);
+            }
         }
     }
     return;
@@ -342,6 +354,9 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line)  {
             }
         }
     }
+}
+void BuiltInCommand::executePipe(){
+    this->execute();
 }
 
 //**************************************
@@ -676,7 +691,7 @@ void JobsList::printJobsList(){
 void JobsList::removeFinishedJobs(){
     for(int i=0 ; i < jobList.size() ; i ++ ){
         //cout << "check if finished: " << jobList[i].command->getPID(); // todo debug
-        if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG)  != 0){//== jobList[i].command->getPID()){
+        if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) != 0){//== jobList[i].command->getPID()){
             //cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl; // todo debug
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);

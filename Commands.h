@@ -47,6 +47,7 @@ class ExternalCommand : public Command {
 private:
     bool _wait;
     JobsList* jobs;
+    int _jobID;
 public:
   ExternalCommand(const char* cmd_line, JobsList* jobs);
   virtual ~ExternalCommand() {}
@@ -173,6 +174,7 @@ class JobsList {
     void addTimeoutJob(int jobId, int sleepTime);
     JobEntry* getTimeoutJob();
     void removeTimeoutJob(int jobId);
+    void resetJobTimerById(int jobId);
     };
 
 class JobsCommand : public BuiltInCommand {
@@ -223,8 +225,6 @@ public:
     void execute() override{};
 };
 
-// TODO: add more classes if needed 
-// maybe ls, timeout ?
 
 class SmallShell {
  private:

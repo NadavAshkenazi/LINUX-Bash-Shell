@@ -133,7 +133,7 @@ ExternalCommand::ExternalCommand(const char* cmd_line, JobsList* jobs): Command(
     JobState state = BG;
     if (_wait)
         state = FG;
-    int jobID = jobs->addJob(this, state);
+    _jobID = jobs->addJob(this, state);
 }
 void ExternalCommand::execute(){
     char clean_cmd_line[strlen(cmd_line) + 1];
@@ -164,7 +164,7 @@ void ExternalCommand::execute(){
                                 NULL};
         //kill (getpid(), SIGTSTP); // debug
         execv(args_to_bash[0], args_to_bash);
-        //jobs->removeJobById(jobID); // todo fix
+        jobs->removeJobById(_jobID);
         jobs->maxJobID -- ;
         perror("smash error: execv failed");
         return;
@@ -181,7 +181,7 @@ void ExternalCommand::execute(){
 //**************************************
 // PipeCommand
 //**************************************
-PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){  // todo how should we print the name of pipe command
+PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){
     string s_cmd = string(cmd_line);
     int pipeLocation;
 
@@ -293,6 +293,8 @@ pid_t PipeCommand::getPID() {
 //**************************************
 RedirectionCommand::RedirectionCommand(const char* cmd_line): Command(cmd_line){
     int signLocation;
+    bool isBackground = _isBackgroundComamnd(cmd_line);
+    _removeBackgroundSign((char*)cmd_line);
     string s_cmd = string(cmd_line);
 
     if (s_cmd.find(">>") != string::npos) {
@@ -303,17 +305,16 @@ RedirectionCommand::RedirectionCommand(const char* cmd_line): Command(cmd_line){
         signLocation = s_cmd.find(">");
     }
     //cout << "signLocation = "<<signLocation << endl; // todo debug
-    cmd = _trim(s_cmd.substr(0, signLocation));
+    cmd = _trim(s_cmd.substr(0, signLocation)) + (isBackground ? " &" : "");
     int sizeOfSign = override ? 1 : 2;
     fileName = _trim(s_cmd.substr(signLocation + sizeOfSign));
-    //cout << "cmd= "<< cmd << endl; // todo debug
-    //cout << "fileName= "<< fileName << endl; // todo debug
-
+//    cout << "cmd= "<< cmd << endl; // todo debug
+//    cout << "fileName= "<< fileName << endl; // todo debug
 }
 void RedirectionCommand::execute() {
 
     int stdoutFd = dup(STDOUT);
-    cout <<  "stdoutFd is " << stdoutFd << endl; //todo debug
+    //cout <<  "stdoutFd is " << stdoutFd << endl; //todo debug
     close(STDOUT);
     int fd;
 
@@ -415,15 +416,17 @@ void ShowPidCommand::execute() {
 //**************************************
 QuitCommand::QuitCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {
     jobs = SmallShell::getInstance().jobsList;
-    killAllJobs = (args[1] == "kill");
+    killAllJobs = false;
+    if (args.size() > 1){
+        killAllJobs = (args[1] == "kill");
+    }
 }
-void QuitCommand::execute() { // todo: should print "core dumped" if quit without kill?
+void QuitCommand::execute() {
     if (killAllJobs){
         jobs->killAllJobs();
     }
     delete this;
     exit(0);
-    //kill(getpid(), 9); // todo think whats better
 }
 
 //**************************************
@@ -459,7 +462,7 @@ KillCommand::KillCommand(const char* cmd_line, bool print) :BuiltInCommand(cmd_l
 //    cout << "signum is " << signum << endl; // todo debug
 //    cout << "pidToKill: " << pidToKill << endl; // todo debug
 }
-void KillCommand::execute() {  // todo should update stopped t?
+void KillCommand::execute() {
     if (print)
         cout << "signal number " << signum << " was sent to pid " << pidToKill << endl;
     if(kill(pidToKill, signum) == -1){
@@ -481,7 +484,7 @@ void KillCommand::execute() {  // todo should update stopped t?
 ForegroundCommand::ForegroundCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {
     jobs = SmallShell::getInstance().jobsList;
 }
-void ForegroundCommand::execute(){ // todo need to debug
+void ForegroundCommand::execute(){
     if (args.size()-1 > ARGS_NUM_BG){
         perror("smash error: fg: invalid arguments");
         return;
@@ -504,15 +507,9 @@ void ForegroundCommand::execute(){ // todo need to debug
     string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
     KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
     cout << jobs->getJobById(JobIdToResume)->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
-    pid_t pidToWait= fork();
-    if (pidToWait < 0){
-        perror("smash error: fork failed");
-        return;
-    } else if (pidToWait == 0){ //child proccess
-        killCommand->execute();
-    } else{ // shell
-        waitpid(pidToWait,NULL,WUNTRACED);
-    }
+    jobs->resetJobTimerById(JobIdToResume);
+    killCommand->execute();
+    waitpid(jobs->getJobById(JobIdToResume)->command->getPID(),NULL,0);
     return;
 }
 
@@ -550,6 +547,7 @@ void BackgroundCommand::execute() {
     string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
     KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
     cout << jobs->getJobById(JobIdToResume)->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
+    jobs->resetJobTimerById(JobIdToResume);
     killCommand->execute();
     return;
 }
@@ -617,7 +615,6 @@ void TimeoutCommand::execute() {
 //**************************************
 // JobsList
 //**************************************
-// todo check if the jobIDs are correct
 JobsList::JobEntry::JobEntry(Command* cmd, int jobID, JobState state): command(cmd), state(state), jobID(jobID) {
     time_t* temp_time= NULL;
     timeStamp = time(temp_time); //todo: check time format
@@ -634,9 +631,18 @@ JobsList::~JobsList(){ // TODO: think
 int JobsList::addJob(Command* cmd, JobState state){
 
     removeFinishedJobs();
-    JobEntry newJob = JobEntry(cmd, maxJobID+1, state);
-    maxJobID++;
-    jobList.push_back(newJob);
+    if (state==BG){
+        JobEntry newJob = JobEntry(cmd, maxJobID+1, state);
+        maxJobID++;
+        jobList.push_back(newJob);
+    } else if (state==FG){
+        if (getJobById(-1) != NULL){
+            removeJobById(-1);
+        }
+        JobEntry newJob = JobEntry(cmd, -1, state);
+        jobList.push_back(newJob);
+    }
+
     return maxJobID;
 
 }
@@ -667,7 +673,7 @@ void JobsList::printJobsList(){
 void JobsList::removeFinishedJobs(){
     for(int i=0 ; i < jobList.size() ; i ++ ){
         //cout << "check if finished: " << jobList[i].command->getPID(); // todo debug
-        if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG)  == jobList[i].command->getPID()){
+        if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG)  != 0){//== jobList[i].command->getPID()){
             //cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl; // todo debug
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
@@ -736,7 +742,7 @@ void JobsList::removeTimeoutJob(int jobId){
     return;
 }
 void JobsList::killAllJobs(){
-    cout << "sending SIGKILL signal to " << jobList.size() << " jobs" << endl;
+    cout << "sending SIGKILL signal to " << jobList.size() << " jobs:" << endl;
     for(int i=0 ; i < jobList.size() ; i ++ ){
         cout << jobList[i].command->getPID() << ": " << jobList[i].command->getCommandName() << endl;
         kill(jobList[i].command->getPID(), 9);
@@ -752,6 +758,16 @@ int JobsList::getLastStoppedJobId() {
     }
     return -1;
 }
+void JobsList::resetJobTimerById(int jobId){
+    for(int i=0 ; i < jobList.size() ; i ++ ){
+        if (jobList[i].jobID == jobId){
+            jobList[i].timeStamp= time(NULL);
+            return;
+        }
+    }
+    return;
+}
+
 
 //**************************************
 // SmallShell

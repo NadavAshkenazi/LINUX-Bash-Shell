@@ -173,7 +173,7 @@ void ExternalCommand::executePipe(){
                             NULL};
     execv(args_to_bash[0], args_to_bash);
     jobs->removeJobById(_jobID);
-    jobs->maxJobID -- ;
+    jobs->maxJobID-- ;
     perror("smash error: execv failed");
     return;
     }
@@ -463,6 +463,10 @@ void KillCommand::execute() {
         cerr <<"smash error: kill: invalid arguments" << endl;
         return;
     }
+    if (args.size()-1 > ARGS_NUM_KILL){
+        cerr <<"smash error: kill: invalid arguments" << endl;
+        return;
+    }
     if (args[1].find("-") == -1){
         cerr <<"smash error: kill: invalid arguments" << endl;
         return;
@@ -540,17 +544,19 @@ void ForegroundCommand::execute(){
         }
     }
 
-    string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
-    KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
+    //string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
+    //KillCommand* killCommand= new KillCommand(killCmd.c_str(), this->jobs, false);
     JobsList::JobEntry* jobToResume= jobs->getJobById(JobIdToResume);
-    cout << jobToResume->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
-    jobs->resetJobTimerById(JobIdToResume);
-    jobs->changeJobId(jobToResume, -1);
-    jobs->changeJobStatus(jobToResume->jobID, FG);
+    cout << jobToResume->command->getCommandName() << ":" << jobToResume->command->getPID() << endl;
 //    cout << "the job id is now: " << jobToResume->jobID << endl; // todo debug
 //    cout << "the former job id is now: " << jobToResume->formerJobId << endl; // todo debug
 //    cout << "state is now: " << jobToResume->state << endl; // todo debug
-    killCommand->execute();
+    //killCommand->execute();
+    jobs->resetJobTimerById(JobIdToResume);
+    jobs->changeJobStatus(jobToResume->jobID, FG);
+    cout << "jobToResume->state: " << jobToResume->state << endl; //todo debug
+    jobs->changeJobId(jobToResume, -1);
+    kill(jobToResume->command->getPID(), SIGCONT);
     waitpid(jobToResume->command->getPID(),NULL,WUNTRACED);
     return;
 }
@@ -585,7 +591,7 @@ void BackgroundCommand::execute() {
     }
 
     string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
-    KillCommand* killCommand= new KillCommand(killCmd.c_str(), false);
+    KillCommand* killCommand= new KillCommand(killCmd.c_str(),this->jobs, false);
     JobsList::JobEntry* jobToResume= jobs->getJobById(JobIdToResume);
     cout << jobToResume->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
     jobs->resetJobTimerById(JobIdToResume);
@@ -805,6 +811,9 @@ void JobsList::removeFinishedJobs(){
             continue;
         if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) != 0){//== jobList[i].command->getPID()){
             //cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl; // todo debug
+            if (jobList[i].jobID == maxJobID){
+                maxJobID--;
+            }
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
             removeTimeoutJob(jobList[i].jobID);
@@ -814,7 +823,7 @@ void JobsList::removeFinishedJobs(){
     }
 }
 JobsList::JobEntry* JobsList::getJobById(int jobId){
-    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
+    for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); it++){
 //        cout << "[" << (*it).jobID  << "]"<< (*it).command->getCommandName() << endl; //todo: debug
         if ((*it).jobID == jobId){
             return &(*it);
@@ -849,6 +858,9 @@ void JobsList::printFirstJobs(){
 void JobsList::removeJobById(int jobId){
     for(int i=0 ; i < jobList.size() ; i ++ ){
         if (jobList[i].jobID == jobId){
+            if (jobList[i].jobID == maxJobID){
+                maxJobID--;
+            }
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
             removeTimeoutJob(jobId);

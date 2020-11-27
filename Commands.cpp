@@ -762,30 +762,30 @@ void TimeoutCommand::execute() {
 //**************************************
 // cpCommand
 //**************************************
+cpCommand::cpCommand(const char* cmd_line, JobsList* jobs) :BuiltInCommand(cmd_line), jobs(jobs){
+    _wait = !_isBackgroundComamnd(cmd_line);
+    clean_cmd_line= string(cmd_line);
+    _removeBackgroundSign((char*)clean_cmd_line.c_str());
+
+    JobState state = BG;
+    if (_wait)
+        state = FG;
+    _jobID = jobs->addJob(this, state);
+};
 
 void cpCommand::execute() {
-//
-//    if (args_num < 2) {
-//        cerr << "smash error: cp: invalid arguments" << endl;
-//        delete[] args;
-//        return;
-//    }
-
     char buffer1[MAX_PWD_SIZE], buffer2[MAX_PWD_SIZE];
-//    char *syscall_check = realpath(args[1], buf1);
     realpath(args[1].c_str(), buffer1);
     realpath(args[2].c_str(), buffer2);
     if (string(buffer1) == string(buffer2)) {
         cout << "smash: " << args[1] << " was copied to " << args[2] << endl;
         return;
     }
-//    bool setpgrp_check = (getpid() == smash.smashPid);
     int fd[2] = {0,0};
+
     pid_t pid = fork();
+
     if (pid == 0) {
-//        if (setpgrp_check){
-//            setpgrp();
-//        }
         fd[0] = open(args[1].c_str(), O_RDONLY);
         if (fd[0] == -1) {
             perror("smash error: open failed");
@@ -818,6 +818,13 @@ void cpCommand::execute() {
         }
         cout << "smash: " << args[1] << " was copied to " << args[2] << endl;
         exit(0);
+    }
+    else{ // shell
+        _pid = pid;
+        //kill (getpid(), SIGTSTP); // TODO: debug
+        if (_wait){
+            waitpid(pid,NULL,WUNTRACED);
+        }
     }
 }
 //**************************************
@@ -1110,6 +1117,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     }
     else if (cmd_s.find("ls") != std::string::npos){
         return new lsCommand(cmd_line);
+    }
+    else if (cmd_s.find("cp") != std::string::npos){
+        return new cpCommand(cmd_line, this->jobsList);
     }
     else {
         return new ExternalCommand(cmd_line, jobsList);

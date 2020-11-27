@@ -218,7 +218,7 @@ private:
     pid_t pidToKill;
     bool print;
 public:
-  KillCommand(const char* cmd_line, bool print=true);
+  KillCommand(const char* cmd_line, JobsList* jobs ,bool print=true);
   virtual ~KillCommand() {}
   void execute() override;
 };

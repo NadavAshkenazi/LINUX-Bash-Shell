@@ -455,8 +455,8 @@ void JobsCommand::execute() {
 //**************************************
 // KillCommand
 //**************************************
-KillCommand::KillCommand(const char* cmd_line, bool print) :BuiltInCommand(cmd_line), print(print) {
-    jobs = SmallShell::getInstance().jobsList;
+KillCommand::KillCommand(const char* cmd_line, JobsList* jobs, bool print) :BuiltInCommand(cmd_line), print(print), jobs(jobs) {
+    //jobs = SmallShell::getInstance().jobsList;
 }
 void KillCommand::execute() {
     if (args.size()-1 < ARGS_NUM_KILL){
@@ -489,8 +489,10 @@ void KillCommand::execute() {
         return;
     }
     pidToKill = jobToKill->command->getPID();
+
 //    cout << "signum is " << signum << endl; // todo debug
-//    cout << "pidToKill: " << pidToKill << endl; // todo debug
+//      cout << "pidToKill: " << pidToKill << endl; // todo debug
+//      cout << "this pid " << getpid() << endl; // todo debug
 
     if (print)
         cout << "signal number " << signum << " was sent to pid " << pidToKill << endl;
@@ -498,6 +500,8 @@ void KillCommand::execute() {
         perror("smash error: kill failed");
         return;
     }
+    waitpid(pidToKill,NULL,WUNTRACED);
+    jobs->removeFinishedJobs(); // TODO: check why need to kill twice
     if (signum == SIGSTOP){
         jobs->changeJobStatus(jobIdToKill, STOPPED);
     }
@@ -767,8 +771,8 @@ int JobsList::addJob(Command* cmd, JobState state){
 void JobsList::printJobsList(){
 
     removeFinishedJobs();
-    cout << "pipePid1 " << pipePid1 << endl; //todo: debug
-    cout << "pipePid2 " << pipePid2 << endl; //todo: debug
+    //cout << "pipePid1 " << pipePid1 << endl; //todo: debug
+    //cout << "pipePid2 " << pipePid2 << endl; //todo: debug
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); ++it){
 
         if ((*it).state == FG)
@@ -990,7 +994,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
         return new ChangePromptCommand(cmd_line, &this->currentPrompt);
     }
     else if (cmd_s.find("kill") != std::string::npos){
-        return new KillCommand(cmd_line);
+        return new KillCommand(cmd_line, this->jobsList);
     }
     else if (cmd_s.find("ls") != std::string::npos){
         return new lsCommand(cmd_line);

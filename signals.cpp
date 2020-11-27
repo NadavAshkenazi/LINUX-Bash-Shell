@@ -68,7 +68,7 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
     }
     fgJob->state = STOPPED;
     if (fgJob->formerJobId == NOVALUE){
-        smash.jobsList->changeJobId(fgJob, smash.jobsList->maxJobID);
+        smash.jobsList->changeJobId(fgJob, smash.jobsList->maxJobID +  1);
         smash.jobsList->maxJobID++;
     } else {
         smash.jobsList->changeJobId(fgJob, fgJob->formerJobId);

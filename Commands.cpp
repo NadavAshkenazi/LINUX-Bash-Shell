@@ -610,7 +610,11 @@ void lsCommand::execute(){
     }
 
     for (int i = 0; i < n; i++) {
-        cout << namelist[i]->d_name << endl; // TODO: change so it won't print "." and ".."
+        string file(namelist[i]->d_name);
+        if (file == "." || file == ".."){
+            continue;
+        }
+        cout << file << endl;
         free(namelist[i]);
     }
     free(namelist);

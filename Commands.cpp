@@ -757,6 +757,82 @@ void TimeoutCommand::execute() {
     }
 }
 
+
+//**************************************
+// cpCommand
+//**************************************
+
+void cpCommand::execute() {
+    char cleanCMD[strlen(cmd_line) + 1];
+    strcpy(cleanCMD, cmd_line);
+    _removeBackgroundSign(cleanCMD);
+
+    char **args = new char *[COMMAND_MAX_ARGS + 1]();
+    int args_num = _parseCommandLine(cleanCMD, args) - 1;
+//
+//    if (args_num < 2) {
+//        cerr << "smash error: cp: invalid arguments" << endl;
+//        delete[] args;
+//        return;
+//    }
+
+    char buf1[MAX_PWD_SIZE];
+    char buf2[MAX_PWD_SIZE];
+
+//    char *syscall_check = realpath(args[1], buf1);
+    realpath(args[1], buf1);
+    realpath(args[2], buf2);
+    if (strcmp(buf1, buf2) == 0) {
+        cout << "smash: " << args[1] << " was copied to " << args[2] << endl;
+        delete[] args;
+        return;
+    }
+    SmallShell &smash = SmallShell::getInstance();
+//    bool setpgrp_check = (getpid() == smash.smashPid);
+    int fd[2] = {0,0};
+    pid_t pid = fork();
+    if (pid == 0) {
+//        if (setpgrp_check){
+//            setpgrp();
+//        }
+        fd[0] = open(args[1], O_RDONLY);
+        if (fd[0] == -1) {
+            perror("smash error: open failed");
+            delete[] args;
+            exit(0);
+        }
+        fd[1] = open(args[2], O_CREAT | O_TRUNC | O_WRONLY, 0666);
+        if (fd[1] == -1) {
+            delete[] args;
+            perror("smash error: open failed");
+            exit(0);
+        }
+        char buf[256];
+        int c0 = read(fd[0], buf, 256), c1;
+        if (c0 == -1) {
+            delete[] args;
+            perror("smash error: read failed");
+            exit(0);
+        }
+        while (c0 > 0) {
+            c1 = write(fd[1], buf, c0);
+            if (c1 == -1) {
+                delete[] args;
+                perror("smash error: write failed");
+                exit(0);
+            }
+            c0 = read(fd[0], buf, 256);
+            if (c0 == -1) {
+                delete[] args;
+                perror("smash error: read failed");
+                exit(0);
+            }
+        }
+        cout << "smash: " << args[1] << " was copied to " << args[2] << endl;
+        delete[] args;
+        exit(0);
+    }
+}
 //**************************************
 // JobsList
 //**************************************

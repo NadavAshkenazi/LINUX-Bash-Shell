@@ -146,6 +146,16 @@ public:
     void execute() override;
 };
 
+
+class cpCommand : public BuiltInCommand {
+// TODO: Add your data members public
+    JobsList* jobs;
+public:
+    cpCommand(const char* cmd_line) :BuiltInCommand(cmd_line) {};
+    virtual ~cpCommand() {}
+    void execute() override;
+};
+
 class JobsList {
 
  public:

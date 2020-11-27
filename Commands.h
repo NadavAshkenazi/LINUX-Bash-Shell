@@ -198,6 +198,8 @@ class JobsList {
     void removeJobByPid(pid_t pid);
     int getLastJobId();
     void _printTimeoutVector();
+    void calcMaxJobId();
+    int getNumOfBgJobs();
 };
 
 

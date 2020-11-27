@@ -280,8 +280,8 @@ void PipeCommand::execute() {
             secondCommand->setPid(_pid2);
             jobs->pipePid1= _pid1;
             jobs->pipePid2= _pid2;
-            cout << "pid1 from pipe = " << pid1 << endl;// todo debug
-            cout << "pid2 from pipe = " << pid2 << endl;// todo debug
+//            cout << "pid1 from pipe = " << pid1 << endl;// todo debug
+//            cout << "pid2 from pipe = " << pid2 << endl;// todo debug
 
             if (!_isBackgroundComamnd(cmd_line)){
 //                kill (getpid(), SIGALRM); // TODO: debug
@@ -333,12 +333,18 @@ void RedirectionCommand::execute() {
     if (override) {
         if ((fd = open(fileName.c_str(), O_CREAT | O_RDWR | O_TRUNC, S_IRWXU)) == -1) {
             perror("smash error: open failed");
+            close(fd);
+            dup2(stdoutFd,STDOUT);
+            close(stdoutFd);
             return;
         }
     }
     else {
         if ((fd = open(fileName.c_str(), O_CREAT | O_RDWR | O_APPEND, S_IRWXU)) == -1){
             perror("smash error: open failed");
+            close(fd);
+            dup2(stdoutFd,STDOUT);
+            close(stdoutFd);
             return;
         }
     }
@@ -506,9 +512,9 @@ void KillCommand::execute() {
     }
     waitpid(pidToKill,NULL,WUNTRACED);
     jobs->removeFinishedJobs(); // TODO: check why need to kill twice
-    if (signum == SIGSTOP){
-        jobs->changeJobStatus(jobIdToKill, STOPPED);
-    }
+//    if (signum == SIGSTOP){ // removed because it's not mentioned in the instructions
+//        jobs->changeJobStatus(jobIdToKill, STOPPED);
+//    }
     if (signum == SIGCONT){
         jobs->changeJobStatus(jobIdToKill, BG);
     }
@@ -554,7 +560,7 @@ void ForegroundCommand::execute(){
     //killCommand->execute();
     jobs->resetJobTimerById(JobIdToResume);
     jobs->changeJobStatus(jobToResume->jobID, FG);
-    cout << "jobToResume->state: " << jobToResume->state << endl; //todo debug
+   // cout << "jobToResume->state: " << jobToResume->state << endl; //todo debug
     jobs->changeJobId(jobToResume, -1);
     kill(jobToResume->command->getPID(), SIGCONT);
     waitpid(jobToResume->command->getPID(),NULL,WUNTRACED);
@@ -590,14 +596,22 @@ void BackgroundCommand::execute() {
         }
     }
 
-    string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
-    KillCommand* killCommand= new KillCommand(killCmd.c_str(),this->jobs, false);
+    //string killCmd = "kill -"+to_string(SIGCONT)+" "+to_string(JobIdToResume);
+    //KillCommand* killCommand= new KillCommand(killCmd.c_str(),this->jobs, false);
     JobsList::JobEntry* jobToResume= jobs->getJobById(JobIdToResume);
-    cout << jobToResume->command->getCommandName() << ":" << jobs->getJobById(JobIdToResume)->command->getPID() << endl;
+    cout << jobToResume->command->getCommandName() << ":" << jobToResume->command->getPID() << endl;
     jobs->resetJobTimerById(JobIdToResume);
     jobs->changeJobStatus(jobToResume->jobID, BG);
-    //jobs->changeJobId(jobToResume, jobToResume->formerJobId); // todo: maybe remove?
-    killCommand->execute();
+//    if (jobToResume->formerJobId == NOVALUE || jobToResume->formerJobId == -1){
+//        cout << "enter job id change" << " jobToResume->formerJobId" << jobToResume->formerJobId << endl;
+//        jobs->changeJobId(jobToResume, jobs->maxJobID + 1);
+//        jobs->maxJobID++;
+//    }
+//    else {
+//        jobs->changeJobId(jobToResume, jobToResume->formerJobId);
+//    }
+    //killCommand->execute();
+    kill(jobToResume->command->getPID(), SIGCONT);
     return;
 }
 
@@ -811,9 +825,6 @@ void JobsList::removeFinishedJobs(){
             continue;
         if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) != 0){//== jobList[i].command->getPID()){
             //cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl; // todo debug
-            if (jobList[i].jobID == maxJobID){
-                maxJobID--;
-            }
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
             removeTimeoutJob(jobList[i].jobID);
@@ -821,7 +832,18 @@ void JobsList::removeFinishedJobs(){
             i--; // to conform with joblist size
         }
     }
+    calcMaxJobId();
 }
+void JobsList::calcMaxJobId(){
+    int max= 0;
+    for(int i=0 ; i < jobList.size() ; i ++ ) {
+        if (jobList[i].jobID > max){
+            max= jobList[i].jobID;
+        }
+    }
+    maxJobID= max;
+}
+
 JobsList::JobEntry* JobsList::getJobById(int jobId){
     for (vector<JobEntry>::iterator it = jobList.begin() ; it != jobList.end(); it++){
 //        cout << "[" << (*it).jobID  << "]"<< (*it).command->getCommandName() << endl; //todo: debug
@@ -919,14 +941,25 @@ void JobsList::removeTimeoutJob(int jobId){
     }
     return;
 }
-void JobsList::killAllJobs(){
-    cout << "sending SIGKILL signal to " << jobList.size() << " jobs:" << endl;
+int JobsList::getNumOfBgJobs(){
+    int counter= 0;
     for(int i=0 ; i < jobList.size() ; i ++ ){
-        cout << jobList[i].command->getPID() << ": " << jobList[i].command->getCommandName() << endl;
-        kill(jobList[i].command->getPID(), 9);
-        delete jobList[i].command;
-        jobList.erase(jobList.begin() + i);
-        i--;
+        if ((jobList[i].state != FG) && (jobList[i].jobID > 0))
+            counter++;
+    }
+    return counter;
+}
+void JobsList::killAllJobs(){
+    int numOfBgJobs= getNumOfBgJobs();
+    cout << "smash: sending SIGKILL signal to " << numOfBgJobs << " jobs:" << endl;
+    for(int i=0 ; i < jobList.size() ; i ++ ){
+        if ((jobList[i].state != FG) && (jobList[i].jobID > 0)){
+            cout << jobList[i].command->getPID() << ": " << jobList[i].command->getCommandName() << endl;
+            kill(jobList[i].command->getPID(), 9);
+            delete jobList[i].command;
+            jobList.erase(jobList.begin() + i);
+            i--;
+        }
     }
 };
 int JobsList::getLastStoppedJobId() {
@@ -1022,6 +1055,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return nullptr;
 }
 void SmallShell::executeCommand(const char *cmd_line) {
+    this->jobsList->removeFinishedJobs();
     Command* cmd = CreateCommand(cmd_line);
     cmd->execute();
 //    Command* cmd = new Command(cmd_line); // todo debug

@@ -9,11 +9,12 @@ using namespace std;
 void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
     cout << "smash: got ctrl-Z" << endl;
     SmallShell& smash = SmallShell::getInstance();
+    smash.jobsList->removeFinishedJobs();
     if (smash.jobsList->hasPipeInFg){
         pid_t pipePid1 = smash.jobsList->pipePid1;
         pid_t pipePid2 = smash.jobsList->pipePid2;
         if (pipePid1 != 0){
-            cout << "pipe1" << pipePid1; //todo: debug
+            //cout << "pipe1" << pipePid1; //todo: debug
             if (kill(pipePid1, SIGSTOP) != 0){
                 perror("smash error: kill failed"); // kill is the syscall that failed
                 return;
@@ -57,7 +58,7 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
     }
     JobsList::JobEntry* fgJob = smash.jobsList->getFgJob();
     if (fgJob == NULL){
-        cerr << "smash error: there is no foreground job to stop" << endl;
+       // cerr << "smash error: there is no foreground job to stop" << endl;
         return;
     }
 //    cout << "fgJob jobID in ctrl z" << fgJob->jobID << endl; // todo debug
@@ -67,7 +68,7 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
         return;
     }
     fgJob->state = STOPPED;
-    if (fgJob->formerJobId == NOVALUE){
+    if (fgJob->formerJobId == NOVALUE || fgJob->formerJobId == -1){
         smash.jobsList->changeJobId(fgJob, smash.jobsList->maxJobID +  1);
         smash.jobsList->maxJobID++;
     } else {
@@ -78,8 +79,9 @@ void ctrlZHandler(int sig_num) { //todo: check with pipe and redirections
 }
 
 void ctrlCHandler(int sig_num) { //todo: check with pipe and redirections
-    cout << "smash: got ctrl-c" << endl;
+    cout << "smash: got ctrl-C" << endl;
     SmallShell& smash = SmallShell::getInstance();
+    smash.jobsList->removeFinishedJobs();
     if (smash.jobsList->hasPipeInFg){
         pid_t pipePid1 = smash.jobsList->pipePid1;
         pid_t pipePid2 = smash.jobsList->pipePid2;
@@ -102,10 +104,14 @@ void ctrlCHandler(int sig_num) { //todo: check with pipe and redirections
         return;
     }
     JobsList::JobEntry* fgJob = smash.jobsList->getFgJob();
+
     if (fgJob == NULL){
-        cerr << "smash error: there is no foreground job to kill" << endl;
+       // cerr << "smash error: there is no foreground job to kill" << endl; // no need to print according to the instructions
+        //cout << "no fg job" << endl; // todo debug
         return;
     }
+    //cout << "fgJob.jobID is: " << fgJob->jobID << endl; // todo debug
+    //cout << "fgJob->command->getPID() is : " << fgJob->command->getPID() << endl; //todo debug
     if (kill(fgJob->command->getPID(), SIGKILL) != 0){
         perror("smash error: kill failed"); // kill is the syscall that failed
         return;

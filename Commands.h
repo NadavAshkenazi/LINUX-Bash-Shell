@@ -204,7 +204,7 @@ class JobsList {
     void printFirstJobs();
     void addTimeoutJob(int jobId, int sleepTime, int pipe = 0);
     JobEntry* getTimeoutJob(int pipe = 0);
-    void removeTimeoutJob(int jobId);
+    void removeTimeoutJob(int jobId, int pipe = 0);
     void resetJobTimerById(int jobId);
     void changeJobId(JobsList::JobEntry* job, int newId);
     JobEntry* getJobByPid(pid_t pid);

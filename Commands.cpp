@@ -181,6 +181,7 @@ void ExternalCommand::executePipe(){
 void ExternalCommand::setPid(pid_t pid){
     this->_pid = pid;
 }
+
 //**************************************
 // PipeCommand
 //**************************************
@@ -200,12 +201,14 @@ void trimForPipe(const char* cmd_line, string* cmd1, string* cmd2, bool* regular
 
     bool isBackground = _isBackgroundComamnd(cmd_line);
     *cmd1 = _trim(s_cmd.substr(0, pipeLocation)) + (isBackground ? " &" : "");
-    int sizeOfPipe = regularPipe ? 1 : 2;
+    int sizeOfPipe = *regularPipe ? 1 : 2;
     *cmd2 = _trim(s_cmd.substr(pipeLocation + sizeOfPipe));
 }
 
 PipeCommand::PipeCommand(const char* cmd_line, JobsList* jobs): Command(cmd_line), _pid1(-1), _pid2(-1), jobs(jobs){
     trimForPipe(cmd_line, &_cmd1, &_cmd2, &regularPipe);
+//    cout << "cmd1: " << _cmd1 << endl; // todo debug
+//    cout << "cmd2: " << _cmd2 << endl; // todo debug
     jobs->hasPipeInFg = true;
 };
 void PipeCommand::execute() {
@@ -872,7 +875,7 @@ void JobsList::printJobsList(){
         if ((*it).state == FG)
             continue;
 
-        cout << "[" << (*it).jobID << "]" ;
+        cout << "[" << (*it).jobID << "] " ;
         cout << (*it).command->getCommandName() << " : " ;
         cout << (*it).command->getPID() << " ";
 
@@ -890,14 +893,19 @@ void JobsList::printJobsList(){
 }
 void JobsList::removeFinishedJobs(){
     for(int i=0 ; i < jobList.size() ; i ++ ){
-        //cout << "check if finishedsize: " << jobList[i].command->getPID(); // todo debug
         if (jobList[i].command->getPID() == -2) // init value
             continue;
         if (waitpid(jobList[i].command->getPID(), NULL, WNOHANG) != 0){//== jobList[i].command->getPID()){
             //cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl; // todo debug
+            if (jobList[i].command->getPID() == pipePid1){
+                pipePid1= 0;
+            }
+            if (jobList[i].command->getPID() == pipePid2){
+                pipePid2= 0;
+            }
             delete jobList[i].command;
-            jobList.erase(jobList.begin() +i);
             removeTimeoutJob(jobList[i].jobID);
+            jobList.erase(jobList.begin() +i);
 //            cout << "timeout to remove " << jobList[i].jobID << endl; // todo:debug
             i--; // to conform with joblist size
         }
@@ -1002,9 +1010,9 @@ JobsList::JobEntry* JobsList::getTimeoutJob(int pipe){
     }
     return NULL;
 }
-void JobsList::removeTimeoutJob(int jobId){
+void JobsList::removeTimeoutJob(int jobId, int pipe){
     for (int i = 0; i< timeoutJobs.size(); i++){
-        if (timeoutJobs[i].id == jobId) {
+        if (timeoutJobs[i].id == jobId && timeoutJobs[i].pipe == pipe) {
             timeoutJobs.erase(timeoutJobs.begin() + i);
             return;
         }
@@ -1055,11 +1063,12 @@ int JobsList::getLastJobId(){
     }
     return -1;
 }
-
 void JobsList::_printTimeoutVector(){
-    for (vector<timeoutJob>::iterator it = timeoutJobs.begin() ; it != timeoutJobs.end(); ++it){
-        cout << "[" << it->id << "]" << getJobById(it->id)->command->getCommandName() <<  " " << it->pipe << endl;
+    cout << "======= timeout vector =======" << endl;
+    for (vector<timeoutJob>::iterator it = timeoutJobs.begin() ; it != timeoutJobs.end(); it++){
+        cout << "[" << it->id << "]" << getJobById(it->id)->command->getCommandName() << "sleep " << it->sleepTime <<  " " << it->pipe << endl;
     }
+    cout << "======= ====== =======" << endl;
 };
 
 //**************************************

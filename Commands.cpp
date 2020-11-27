@@ -289,8 +289,8 @@ void PipeCommand::execute() {
                 waitpid( _pid2, NULL, WUNTRACED);
             }
             jobs->hasPipeInFg = false;
-            jobs->pipePid1= 0;
-            jobs->pipePid2= 0;
+//            jobs->pipePid1= 0;
+//            jobs->pipePid2= 0;
         }
     }
     return;
@@ -703,13 +703,17 @@ void TimeoutCommand::execute() {
                 if (_isBackgroundComamnd(cmd1.c_str())){
                     smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep, PIPE1);
                 }
-                smash.jobsList->addTimeoutJob(-1, sleep);
+                else{
+                    smash.jobsList->addTimeoutJob(-1, sleep, PIPE1);
+                }
             }
             if (!_isBuiltIn(cmd2)){
                 if (_isBackgroundComamnd(cmd2.c_str())){
                     smash.jobsList->addTimeoutJob(smash.jobsList->maxJobID+1, sleep, PIPE2);
                 }
-                smash.jobsList->addTimeoutJob(-1, sleep);
+                else{
+                    smash.jobsList->addTimeoutJob(-1, sleep, PIPE2);
+                }
             }
         }
         else{
@@ -795,6 +799,8 @@ void JobsList::removeFinishedJobs(){
             //cout << waitpid(jobList[i].command->getPID(), NULL, WNOHANG) << endl; // todo debug
             delete jobList[i].command;
             jobList.erase(jobList.begin() +i);
+            removeTimeoutJob(jobList[i].jobID);
+//            cout << "timeout to remove " << jobList[i].jobID << endl; // todo:debug
             i--; // to conform with joblist size
         }
     }
@@ -926,6 +932,12 @@ int JobsList::getLastJobId(){
     }
     return -1;
 }
+
+void JobsList::_printTimeoutVector(){
+    for (vector<timeoutJob>::iterator it = timeoutJobs.begin() ; it != timeoutJobs.end(); ++it){
+        cout << "[" << it->id << "]" << getJobById(it->id)->command->getCommandName() <<  " " << it->pipe << endl;
+    }
+};
 
 //**************************************
 // SmallShell

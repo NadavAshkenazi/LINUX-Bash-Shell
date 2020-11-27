@@ -197,6 +197,7 @@ class JobsList {
     JobEntry* getJobByPid(pid_t pid);
     void removeJobByPid(pid_t pid);
     int getLastJobId();
+    void _printTimeoutVector();
 };
 
 

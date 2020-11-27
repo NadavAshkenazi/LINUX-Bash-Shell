@@ -120,10 +120,28 @@ void alarmHandler(int sig_num) {
   // TODO: Add your implementation
     cout << "smash: got an alarm" << endl;
     SmallShell& smash = SmallShell::getInstance();
+//    smash.jobsList->_printTimeoutVector(); //todo: debug
     time_t* tempTime= NULL;
     time_t now = time(tempTime);
     for (int i = 0; i < smash.jobsList->timeoutJobs.size(); i++){
-        JobsList::JobEntry* job = smash.jobsList->getJobById(smash.jobsList->timeoutJobs[i].id);
+        JobsList::JobEntry* job;
+//        cout << "cond 1: " << (smash.jobsList->timeoutJobs[i].pipe == PIPE1) << endl; // todo: debug
+//        cout << "cond 2: " << (smash.jobsList->timeoutJobs[i].pipe == PIPE2) << endl; // todo: debug
+        if(smash.jobsList->timeoutJobs[i].pipe == PIPE1){
+            job = smash.jobsList->getJobByPid(smash.jobsList->pipePid1);
+//            smash.jobsList->printJobsList(); // todo: debug
+//            cout << "job? " << (job==NULL) << endl; // todo: debug
+        }
+        else if (smash.jobsList->timeoutJobs[i].pipe == PIPE2){
+            job = smash.jobsList->getJobByPid(smash.jobsList->pipePid2);
+        }
+        else {
+            job = smash.jobsList->getJobById(smash.jobsList->timeoutJobs[i].id);
+        }
+        if (job == NULL){
+//            cout << "job is null" << endl;  // todo: debug
+            smash.jobsList->removeTimeoutJob(smash.jobsList->timeoutJobs[i].id);
+        }
         if (now - job->timeStamp >= smash.jobsList->timeoutJobs[i].sleepTime){
             if (kill(job->command->getPID(), SIGKILL) != 0){
                 perror("smash error: kill failed"); // kill is the syscall that failed
@@ -132,9 +150,12 @@ void alarmHandler(int sig_num) {
             else{
                 string cmd_line1 = job->command->cmd_line;
                 cout << "smash: process " << cmd_line1 << " timed out!" << endl;
+//                smash.jobsList->removeFinishedJobs(); // todo :check
+//                i--;// todo :check
             }
         }
     }
+//    cout << "exit loop" << endl; //todo: debug
     smash.jobsList->removeFinishedJobs();
     return;
 }

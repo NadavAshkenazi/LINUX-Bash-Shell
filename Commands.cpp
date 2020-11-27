@@ -43,6 +43,7 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define DEBUG_PRINT cerr << "DEBUG: "
 #define SIGSTOP 19
 #define SIGCONT 18
+#define BUFFER_SIZE 256
 #define EXEC(path, arg) \
   execvp((path), (arg));
 
@@ -112,7 +113,7 @@ Command::Command(const char *cmd_line): _pid(-2),isFinished(false){//, cmd_line(
     strcpy (this->cmd_line, cmd_line);
     //cmd_line = tempCmdLine;
 
-    char** args_temp = (char**)malloc((MAX_ARGS_NUM+1)*sizeof(char*));
+    char** args_temp = (char**)malloc((COMMAND_MAX_ARGS+1)*sizeof(char*));
     int args_size = _parseCommandLine(cmd_line, args_temp);
     for (int i=0; i< args_size ; i++){
         args.push_back(args_temp[i]);
@@ -763,12 +764,6 @@ void TimeoutCommand::execute() {
 //**************************************
 
 void cpCommand::execute() {
-    char cleanCMD[strlen(cmd_line) + 1];
-    strcpy(cleanCMD, cmd_line);
-    _removeBackgroundSign(cleanCMD);
-
-    char **args = new char *[COMMAND_MAX_ARGS + 1]();
-    int args_num = _parseCommandLine(cleanCMD, args) - 1;
 //
 //    if (args_num < 2) {
 //        cerr << "smash error: cp: invalid arguments" << endl;
@@ -776,18 +771,14 @@ void cpCommand::execute() {
 //        return;
 //    }
 
-    char buf1[MAX_PWD_SIZE];
-    char buf2[MAX_PWD_SIZE];
-
+    char buffer1[MAX_PWD_SIZE], buffer2[MAX_PWD_SIZE];
 //    char *syscall_check = realpath(args[1], buf1);
-    realpath(args[1], buf1);
-    realpath(args[2], buf2);
-    if (strcmp(buf1, buf2) == 0) {
+    realpath(args[1].c_str(), buffer1);
+    realpath(args[2].c_str(), buffer2);
+    if (string(buffer1) == string(buffer2)) {
         cout << "smash: " << args[1] << " was copied to " << args[2] << endl;
-        delete[] args;
         return;
     }
-    SmallShell &smash = SmallShell::getInstance();
 //    bool setpgrp_check = (getpid() == smash.smashPid);
     int fd[2] = {0,0};
     pid_t pid = fork();
@@ -795,41 +786,37 @@ void cpCommand::execute() {
 //        if (setpgrp_check){
 //            setpgrp();
 //        }
-        fd[0] = open(args[1], O_RDONLY);
+        fd[0] = open(args[1].c_str(), O_RDONLY);
         if (fd[0] == -1) {
             perror("smash error: open failed");
-            delete[] args;
             exit(0);
         }
-        fd[1] = open(args[2], O_CREAT | O_TRUNC | O_WRONLY, 0666);
+
+        fd[1] = open(args[2].c_str(), O_CREAT |O_WRONLY| O_TRUNC  , 0666);
         if (fd[1] == -1) {
-            delete[] args;
             perror("smash error: open failed");
             exit(0);
         }
-        char buf[256];
-        int c0 = read(fd[0], buf, 256), c1;
-        if (c0 == -1) {
-            delete[] args;
+        char buffer[BUFFER_SIZE];
+        int c[2] {0,0};
+         c[0] = read(fd[0], buffer, BUFFER_SIZE), c[1];
+        if (c[0] == -1) {
             perror("smash error: read failed");
             exit(0);
         }
-        while (c0 > 0) {
-            c1 = write(fd[1], buf, c0);
-            if (c1 == -1) {
-                delete[] args;
+        while (c[0] > 0) {
+            c[1] = write(fd[1], buffer, c[0]);
+            if (c[1] == -1) {
                 perror("smash error: write failed");
                 exit(0);
             }
-            c0 = read(fd[0], buf, 256);
-            if (c0 == -1) {
-                delete[] args;
+            c[0] = read(fd[0], buffer, BUFFER_SIZE);
+            if (c[0] == -1) {
                 perror("smash error: read failed");
                 exit(0);
             }
         }
         cout << "smash: " << args[1] << " was copied to " << args[2] << endl;
-        delete[] args;
         exit(0);
     }
 }
